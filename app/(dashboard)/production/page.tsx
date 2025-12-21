@@ -23,6 +23,13 @@ interface ProductionRun {
     id: string;
     name: string;
   }>;
+  finished_products_produced?: Array<{
+    id: string;
+    name: string;
+    quantity_produced: number;
+    batch_size: number;
+    units_per_batch: number;
+  }>;
 }
 
 interface Formulation {
