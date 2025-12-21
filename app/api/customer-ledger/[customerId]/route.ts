@@ -20,8 +20,8 @@ export async function GET(
         )
       `)
       .eq('customer_id', customerId)
-      .order('transaction_date', { ascending: false })
-      .order('created_at', { ascending: false });
+      .order('transaction_date', { ascending: true })
+      .order('created_at', { ascending: true });
 
     if (error) throw error;
     return NextResponse.json(data);

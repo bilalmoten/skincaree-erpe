@@ -27,15 +27,24 @@ export async function GET() {
       .select(`
         quantity,
         finished_products (
-          name
+          name,
+          min_stock_level
         )
       `)
       .lt('quantity', 10);
 
-    // Recent production runs
+    // Expiring products removed - batch tracking simplified to just use IDs
+
+    // Recent production runs with formulation details
     const { data: recentProduction } = await supabase
       .from('production_runs')
-      .select('*')
+      .select(`
+        *,
+        formulations (
+          name,
+          batch_unit
+        )
+      `)
       .order('production_date', { ascending: false })
       .limit(5);
 

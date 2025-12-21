@@ -40,12 +40,24 @@ export async function GET(request: NextRequest) {
     const totalRuns = data.length;
     const totalBatchSize = data.reduce((sum, run) => sum + run.batch_size, 0);
 
+    // Production by formulation
+    const formulationStats: Record<string, { name: string; runs: number; totalBatchSize: number }> = {};
+    data.forEach((run: any) => {
+      const formulationName = run.formulations?.name || 'Unknown';
+      if (!formulationStats[formulationName]) {
+        formulationStats[formulationName] = { name: formulationName, runs: 0, totalBatchSize: 0 };
+      }
+      formulationStats[formulationName].runs += 1;
+      formulationStats[formulationName].totalBatchSize += run.batch_size;
+    });
+
     return NextResponse.json({
       summary: {
         totalRuns,
         totalBatchSize,
       },
       runs: data,
+      byFormulation: Object.values(formulationStats).sort((a, b) => b.totalBatchSize - a.totalBatchSize),
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

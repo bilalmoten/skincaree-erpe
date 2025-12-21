@@ -43,12 +43,16 @@ export async function GET() {
       return sum + (qty * product.price);
     }, 0);
 
+    // Calculate total inventory value
+    const totalInventoryValue = rawMaterialsTotal + finishedProductsTotal;
+
     return NextResponse.json({
       summary: {
         rawMaterialsCount: rawMaterials.length,
         rawMaterialsValue: rawMaterialsTotal,
         finishedProductsCount: finishedProducts.length,
         finishedProductsValue: finishedProductsTotal,
+        totalInventoryValue,
       },
       rawMaterials,
       finishedProducts,

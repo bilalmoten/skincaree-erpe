@@ -15,8 +15,16 @@ interface FinishedProduct {
   price: number;
   formulation_id: string | null;
   units_per_batch: number | null;
+  shelf_life_days: number | null;
+  category_id: string | null;
   notes: string | null;
   finished_product_inventory: Array<{ id: string; quantity: number }>;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  type: string;
 }
 
 export default function EditFinishedProductPage() {
@@ -27,6 +35,7 @@ export default function EditFinishedProductPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formulations, setFormulations] = useState<Formulation[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [product, setProduct] = useState<FinishedProduct | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -34,6 +43,8 @@ export default function EditFinishedProductPage() {
     price: '',
     formulation_id: '',
     units_per_batch: '1',
+    shelf_life_days: '',
+    category_id: '',
     notes: '',
     quantity: '',
   });
@@ -42,8 +53,19 @@ export default function EditFinishedProductPage() {
     if (id) {
       fetchFormulations();
       fetchProduct();
+      fetchCategories();
     }
   }, [id]);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/material-categories');
+      const data = await res.json();
+      setCategories(data.filter((c: Category) => c.type === 'finished_good'));
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
 
   const fetchFormulations = async () => {
     try {
@@ -66,6 +88,8 @@ export default function EditFinishedProductPage() {
         price: data.price.toString(),
         formulation_id: data.formulation_id || '',
         units_per_batch: data.units_per_batch?.toString() || '1',
+        shelf_life_days: data.shelf_life_days?.toString() || '',
+        category_id: data.category_id || '',
         notes: data.notes || '',
         quantity: data.finished_product_inventory?.[0]?.quantity?.toString() || '0',
       });
@@ -91,6 +115,8 @@ export default function EditFinishedProductPage() {
           price: formData.price,
           formulation_id: formData.formulation_id || null,
           units_per_batch: formData.units_per_batch,
+          shelf_life_days: formData.shelf_life_days,
+          category_id: formData.category_id || null,
           notes: formData.notes,
         }),
       });
@@ -178,6 +204,22 @@ export default function EditFinishedProductPage() {
         </div>
 
         <div>
+          <label className="block text-sm font-medium mb-1">Category</label>
+          <select
+            value={formData.category_id}
+            onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+            className="w-full border rounded px-3 py-2"
+          >
+            <option value="">Select Category</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
           <label className="block text-sm font-medium mb-1">Units per Batch</label>
           <input
             type="number"
@@ -189,6 +231,20 @@ export default function EditFinishedProductPage() {
           />
           <p className="text-xs text-gray-500 mt-1">
             Number of finished units produced from one batch. Example: If batch size is 1kg and this is 20, then 1kg = 20 finished units.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Shelf Life (Days)</label>
+          <input
+            type="number"
+            value={formData.shelf_life_days}
+            onChange={(e) => setFormData({ ...formData, shelf_life_days: e.target.value })}
+            className="w-full border rounded px-3 py-2"
+            placeholder="e.g., 365 (for 1 year)"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Number of days the product remains usable after production. Used to calculate expiry dates.
           </p>
         </div>
 

@@ -1,12 +1,37 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f9fafb;
-  --foreground: #111827;
+  --purple-primary: #7C3AED;
+  --purple-primary-dark: #6D28D9;
+  --purple-primary-light: #8B5CF6;
+  --purple-bg: #F5F3FF;
+  --purple-accent: #A78BFA;
+  --card-bg: #FFFFFF;
+  --text-primary: #1F1B24;
+  --text-secondary: #6B7280;
+  --background: #F5F3FF;
+  --foreground: #1F1B24;
   --card: #ffffff;
-  --border: #e5e7eb;
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
+  --border: #E9D5FF;
+  --primary: #7C3AED;
+  --primary-hover: #6D28D9;
+}
+
+.dark {
+  --purple-primary: #8B5CF6;
+  --purple-primary-dark: #7C3AED;
+  --purple-primary-light: #A78BFA;
+  --purple-bg: #1F1B24;
+  --purple-accent: #7C3AED;
+  --card-bg: #1F1B24;
+  --text-primary: #F5F3FF;
+  --text-secondary: #A78BFA;
+  --background: #1F1B24;
+  --foreground: #F5F3FF;
+  --card: #1F1B24;
+  --border: #4C1D95;
+  --primary: #8B5CF6;
+  --primary-hover: #7C3AED;
 }
 
 @theme inline {
@@ -20,14 +45,20 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Force light mode for consistent UI */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #f9fafb;
-    --foreground: #111827;
-    --card: #ffffff;
-    --border: #e5e7eb;
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
   }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
 }

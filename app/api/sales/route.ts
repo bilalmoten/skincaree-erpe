@@ -24,7 +24,8 @@ export async function GET() {
           )
         )
       `)
-      .order('sale_date', { ascending: false });
+      .order('sale_date', { ascending: false })
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
 
@@ -39,12 +40,26 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient();
     const body = await request.json();
 
-    const { customer_id, sale_date, items, notes } = body;
+    const { customer_id, sale_date, items, notes, is_cash_paid, discount_type, discount_value } = body;
 
-    // Calculate total
-    const totalAmount = items.reduce((sum: number, item: any) => {
+    // Calculate subtotal
+    const subtotal = items.reduce((sum: number, item: any) => {
       return sum + (parseFloat(item.unit_price) * parseInt(item.quantity));
     }, 0);
+
+    // Calculate discount
+    let discountAmount = 0;
+    if (discount_type && discount_type !== 'none' && discount_value) {
+      const discountVal = parseFloat(discount_value) || 0;
+      if (discount_type === 'percentage') {
+        discountAmount = (subtotal * discountVal) / 100;
+      } else {
+        discountAmount = Math.min(discountVal, subtotal);
+      }
+    }
+
+    // Calculate total
+    const totalAmount = subtotal - discountAmount;
 
     // Create sale
     const { data: sale, error: saleError } = await supabase
@@ -53,7 +68,12 @@ export async function POST(request: NextRequest) {
         customer_id: customer_id || null,
         sale_date: sale_date || new Date().toISOString().split('T')[0],
         total_amount: totalAmount,
+        subtotal: subtotal,
+        discount_type: discount_type || null,
+        discount_value: discount_value ? parseFloat(discount_value) : null,
+        discount_amount: discountAmount,
         notes: notes || null,
+        is_cash_paid: is_cash_paid || false,
       })
       .select()
       .single();
@@ -72,6 +92,15 @@ export async function POST(request: NextRequest) {
 
       const available = inventory?.quantity || 0;
       const requested = parseInt(item.quantity);
+
+      // Validate negative inventory
+      if (requested <= 0) {
+        await supabase.from('sales').delete().eq('id', sale.id);
+        return NextResponse.json(
+          { error: `Invalid quantity for product. Quantity must be greater than 0.` },
+          { status: 400 }
+        );
+      }
 
       if (available < requested) {
         // Rollback sale
@@ -105,11 +134,13 @@ export async function POST(request: NextRequest) {
         .upsert({
           finished_product_id: item.finished_product_id,
           quantity: available - requested,
+        }, {
+          onConflict: 'finished_product_id'
         });
     }
 
-    // Add to customer ledger if customer exists
-    if (customer_id) {
+    // Add to customer ledger if customer exists and not cash paid
+    if (customer_id && !is_cash_paid) {
       // Get current balance
       const { data: ledgerEntries } = await supabase
         .from('customer_ledger')

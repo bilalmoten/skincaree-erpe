@@ -108,7 +108,24 @@ export default function CustomerLedgerPage() {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">{customer?.name} - Ledger</h1>
+          <div className="flex justify-between items-center">
+            <h1 className="text-3xl font-bold">{customer?.name} - Ledger</h1>
+            <button
+              onClick={async () => {
+                try {
+                  const { generateLedgerPDF } = await import('@/lib/pdf/utils');
+                  const doc = generateLedgerPDF(customer, ledger);
+                  doc.save(`ledger-${customer?.name}-${new Date().toISOString().split('T')[0]}.pdf`);
+                } catch (error) {
+                  console.error('Error generating PDF:', error);
+                  alert('Failed to generate PDF');
+                }
+              }}
+              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+            >
+              Export PDF
+            </button>
+          </div>
           <p className="text-lg mt-2">
             Current Balance: <span className={`font-bold ${currentBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
               PKR {Math.abs(currentBalance).toFixed(2)} {currentBalance > 0 ? '(Owed)' : '(Credit)'}

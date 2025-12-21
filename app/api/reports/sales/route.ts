@@ -44,6 +44,30 @@ export async function GET(request: NextRequest) {
       return sum + (sale.sales_items?.reduce((itemSum: number, item: any) => itemSum + item.quantity, 0) || 0);
     }, 0);
 
+    // Sales by product
+    const productSales: Record<string, { name: string; quantity: number; revenue: number }> = {};
+    data.forEach((sale: any) => {
+      sale.sales_items?.forEach((item: any) => {
+        const productName = item.finished_products?.name || 'Unknown';
+        if (!productSales[productName]) {
+          productSales[productName] = { name: productName, quantity: 0, revenue: 0 };
+        }
+        productSales[productName].quantity += item.quantity;
+        productSales[productName].revenue += item.subtotal;
+      });
+    });
+
+    // Sales by customer
+    const customerSales: Record<string, { name: string; sales: number; revenue: number }> = {};
+    data.forEach((sale: any) => {
+      const customerName = sale.customers?.name || 'Walk-in Customer';
+      if (!customerSales[customerName]) {
+        customerSales[customerName] = { name: customerName, sales: 0, revenue: 0 };
+      }
+      customerSales[customerName].sales += 1;
+      customerSales[customerName].revenue += sale.total_amount;
+    });
+
     return NextResponse.json({
       summary: {
         totalSales,
@@ -51,6 +75,8 @@ export async function GET(request: NextRequest) {
         totalItems,
       },
       sales: data,
+      byProduct: Object.values(productSales).sort((a, b) => b.revenue - a.revenue),
+      byCustomer: Object.values(customerSales).sort((a, b) => b.revenue - a.revenue),
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

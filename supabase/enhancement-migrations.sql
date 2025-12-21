@@ -18,6 +18,12 @@ ALTER TABLE finished_products ADD COLUMN IF NOT EXISTS min_stock_level INTEGER D
 -- 4. Add is_cash_paid to sales table
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS is_cash_paid BOOLEAN DEFAULT false;
 
+-- 4a. Add discount fields to sales table
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS subtotal DECIMAL(10, 2);
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS discount_type VARCHAR(20) CHECK (discount_type IN ('none', 'percentage', 'fixed'));
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS discount_value DECIMAL(10, 2);
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10, 2) DEFAULT 0;
+
 -- ============================================================================
 -- STAGE 2: HIGH PRIORITY (Not Complex)
 -- ============================================================================
@@ -37,10 +43,11 @@ ALTER TABLE raw_materials ADD COLUMN IF NOT EXISTS category_id UUID REFERENCES m
 -- 7. Add category_id to finished_products
 ALTER TABLE finished_products ADD COLUMN IF NOT EXISTS category_id UUID REFERENCES material_categories(id);
 
--- 8. Add expiry date tracking columns
-ALTER TABLE finished_products ADD COLUMN IF NOT EXISTS shelf_life_days INTEGER;
-ALTER TABLE finished_product_inventory ADD COLUMN IF NOT EXISTS expiry_date DATE;
-ALTER TABLE production_runs ADD COLUMN IF NOT EXISTS expiry_date DATE;
+-- 8. Add expiry date tracking columns (optional - can be removed if not needed)
+-- ALTER TABLE finished_products ADD COLUMN IF NOT EXISTS shelf_life_days INTEGER;
+-- ALTER TABLE finished_product_inventory ADD COLUMN IF NOT EXISTS expiry_date DATE;
+-- ALTER TABLE production_runs ADD COLUMN IF NOT EXISTS expiry_date DATE;
+-- Note: Batch tracking simplified - just using production run IDs for reference
 
 -- 9. Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_raw_materials_category_id ON raw_materials(category_id);

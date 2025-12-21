@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient();
     const body = await request.json();
 
-    const { name, sku, price, formulation_id, units_per_batch, notes } = body;
+    const { name, sku, price, formulation_id, units_per_batch, shelf_life_days, category_id, notes } = body;
 
     // Insert finished product
     const { data: product, error: productError } = await supabase
@@ -84,6 +84,8 @@ export async function POST(request: NextRequest) {
         price: parseFloat(price),
         formulation_id: formulation_id || null,
         units_per_batch: units_per_batch ? parseFloat(units_per_batch) : 1,
+        shelf_life_days: shelf_life_days ? parseInt(shelf_life_days) : null,
+        category_id: category_id || null,
         notes: notes || null,
       })
       .select()

@@ -12,7 +12,6 @@ interface RawMaterial {
 interface Ingredient {
   raw_material_id: string;
   quantity: string;
-  unit: string;
   percentage: string;
 }
 
@@ -44,7 +43,7 @@ export default function NewFormulationPage() {
   };
 
   const addIngredient = () => {
-    setIngredients([...ingredients, { raw_material_id: '', quantity: '', unit: '', percentage: '' }]);
+    setIngredients([...ingredients, { raw_material_id: '', quantity: '', percentage: '' }]);
   };
 
   const removeIngredient = (index: number) => {
@@ -104,7 +103,7 @@ export default function NewFormulationPage() {
       ).map(ing => ({
         raw_material_id: ing.raw_material_id,
         quantity: ing.quantity || '0',
-        unit: ing.unit || 'g',
+        unit: formData.batch_unit || 'g',
       }));
 
       const res = await fetch('/api/formulations', {
@@ -302,15 +301,14 @@ export default function NewFormulationPage() {
                         )}
 
                         <div className="col-span-6 md:col-span-2">
-                          <label className="block text-xs font-medium text-gray-700 mb-1">Unit *</label>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Unit</label>
                           <input
                             type="text"
-                            placeholder="Unit"
-                            value={ingredient.unit}
-                            onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                            required
+                            value={formData.batch_unit}
+                            readOnly
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-600"
                           />
+                          <p className="text-xs text-gray-500 mt-1">Uses batch unit</p>
                         </div>
 
                         <div className="col-span-6 md:col-span-1">

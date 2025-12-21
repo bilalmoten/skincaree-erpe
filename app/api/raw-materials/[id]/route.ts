@@ -47,7 +47,7 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const { name, unit, supplier, last_price, notes } = body;
+    const { name, unit, supplier, last_price, notes, category_id } = body;
 
     const { data, error } = await supabase
       .from('raw_materials')
@@ -57,6 +57,7 @@ export async function PUT(
         supplier: supplier || null,
         last_price: last_price ? parseFloat(last_price) : null,
         notes: notes || null,
+        category_id: category_id || null,
       })
       .eq('id', id)
       .select()

@@ -14,9 +14,13 @@ interface Customer {
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showImport, setShowImport] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchCustomers();
@@ -27,6 +31,7 @@ export default function CustomersPage() {
       const res = await fetch('/api/customers');
       const data = await res.json();
       setCustomers(data);
+      setFilteredCustomers(data);
     } catch (error) {
       console.error('Error fetching customers:', error);
     } finally {
@@ -34,7 +39,23 @@ export default function CustomersPage() {
     }
   };
 
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredCustomers(customers);
+    } else {
+      const query = searchQuery.toLowerCase();
+      const filtered = customers.filter((customer) =>
+        customer.name.toLowerCase().includes(query) ||
+        customer.email?.toLowerCase().includes(query) ||
+        customer.phone?.toLowerCase().includes(query) ||
+        customer.address?.toLowerCase().includes(query)
+      );
+      setFilteredCustomers(filtered);
+    }
+  }, [searchQuery, customers]);
+
   const handleExport = async () => {
+    setExporting(true);
     try {
       const res = await fetch('/api/customers/excel/export');
       const blob = await res.blob();
@@ -46,6 +67,8 @@ export default function CustomersPage() {
     } catch (error) {
       console.error('Error exporting:', error);
       alert('Failed to export');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -66,6 +89,7 @@ export default function CustomersPage() {
   const handleImport = async () => {
     if (!importFile) return;
 
+    setImporting(true);
     const formData = new FormData();
     formData.append('file', importFile);
 
@@ -97,59 +121,70 @@ export default function CustomersPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Customers</h1>
-        <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-purple-700 dark:text-purple-300">Customers</h1>
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={handleDownloadTemplate}
-            className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+            className="px-3 sm:px-4 py-2 bg-purple-100 dark:bg-purple-800 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-700 transition-all text-sm font-medium"
           >
             Download Template
           </button>
           <button
             onClick={() => setShowImport(!showImport)}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all text-sm font-medium shadow-md hover:shadow-lg"
           >
             Import Excel
           </button>
           <button
             onClick={handleExport}
-            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+            disabled={exporting}
+            className="px-3 sm:px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all text-sm font-medium shadow-md hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            Export Excel
+            {exporting ? 'Exporting...' : 'Export Excel'}
           </button>
           <Link
             href="/customers/new"
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all text-sm font-medium shadow-md hover:shadow-lg"
           >
             Add New
           </Link>
         </div>
       </div>
 
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Search customers by name, email, phone, or address..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full max-w-md border-2 border-purple-200 dark:border-purple-700 rounded-lg px-4 py-2 text-sm dark:bg-purple-800 dark:text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none"
+        />
+      </div>
+
       {showImport && (
-        <div className="mb-6 p-4 bg-gray-100 rounded">
-          <h2 className="font-semibold mb-2">Import from Excel</h2>
-          <div className="flex gap-2">
+        <div className="mb-6 p-4 bg-white dark:bg-purple-900 rounded-xl shadow-lg border-2 border-purple-200 dark:border-purple-800">
+          <h2 className="font-semibold text-purple-700 dark:text-purple-300 mb-2">Import from Excel</h2>
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="file"
               accept=".xlsx,.xls"
               onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-              className="border rounded px-2 py-1"
+              className="flex-1 border-2 border-purple-200 dark:border-purple-700 rounded-lg px-2 py-1 dark:bg-purple-800 dark:text-white"
             />
             <button
               onClick={handleImport}
-              disabled={!importFile}
-              className="px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+              disabled={importing || !importFile}
+              className="px-4 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm"
             >
-              Import
+              {importing ? 'Importing...' : 'Import'}
             </button>
             <button
               onClick={() => {
                 setShowImport(false);
                 setImportFile(null);
               }}
-              className="px-4 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
+              className="px-4 py-1 bg-purple-100 dark:bg-purple-800 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-700 transition-all text-sm font-medium"
             >
               Cancel
             </button>
@@ -158,34 +193,35 @@ export default function CustomersPage() {
       )}
 
       <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border border-gray-200">
-          <thead>
-            <tr className="bg-gray-50">
-              <th className="px-4 py-2 text-left border">Name</th>
-              <th className="px-4 py-2 text-left border">Email</th>
-              <th className="px-4 py-2 text-left border">Phone</th>
-              <th className="px-4 py-2 text-left border">Address</th>
-              <th className="px-4 py-2 text-left border">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {customers.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                  No customers found. Add your first customer!
-                </td>
+        <div className="bg-white dark:bg-purple-900 rounded-xl shadow-lg border-2 border-purple-200 dark:border-purple-800 overflow-hidden">
+          <table className="min-w-full">
+            <thead>
+              <tr className="bg-purple-50 dark:bg-purple-800">
+                <th className="px-4 py-2 text-left text-sm font-medium text-purple-700 dark:text-purple-300 border-b-2 border-purple-200 dark:border-purple-700">Name</th>
+                <th className="px-4 py-2 text-left text-sm font-medium text-purple-700 dark:text-purple-300 border-b-2 border-purple-200 dark:border-purple-700">Email</th>
+                <th className="px-4 py-2 text-left text-sm font-medium text-purple-700 dark:text-purple-300 border-b-2 border-purple-200 dark:border-purple-700">Phone</th>
+                <th className="px-4 py-2 text-left text-sm font-medium text-purple-700 dark:text-purple-300 border-b-2 border-purple-200 dark:border-purple-700">Address</th>
+                <th className="px-4 py-2 text-left text-sm font-medium text-purple-700 dark:text-purple-300 border-b-2 border-purple-200 dark:border-purple-700">Actions</th>
               </tr>
-            ) : (
-              customers.map((customer) => (
-                <tr key={customer.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 border">{customer.name}</td>
-                  <td className="px-4 py-2 border">{customer.email || '-'}</td>
-                  <td className="px-4 py-2 border">{customer.phone || '-'}</td>
-                  <td className="px-4 py-2 border">{customer.address || '-'}</td>
-                  <td className="px-4 py-2 border">
+            </thead>
+            <tbody>
+              {filteredCustomers.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-purple-600 dark:text-purple-400">
+                    No customers found. Add your first customer!
+                  </td>
+                </tr>
+              ) : (
+                filteredCustomers.map((customer) => (
+                  <tr key={customer.id} className="hover:bg-purple-50 dark:hover:bg-purple-800/50 transition-colors">
+                  <td className="px-4 py-2 border-b border-purple-200 dark:border-purple-700 text-gray-900 dark:text-white">{customer.name}</td>
+                  <td className="px-4 py-2 border-b border-purple-200 dark:border-purple-700 text-gray-900 dark:text-white">{customer.email || '-'}</td>
+                  <td className="px-4 py-2 border-b border-purple-200 dark:border-purple-700 text-gray-900 dark:text-white">{customer.phone || '-'}</td>
+                  <td className="px-4 py-2 border-b border-purple-200 dark:border-purple-700 text-gray-900 dark:text-white">{customer.address || '-'}</td>
+                  <td className="px-4 py-2 border-b border-purple-200 dark:border-purple-700">
                     <Link
                       href={`/customers/${customer.id}`}
-                      className="text-blue-600 hover:underline mr-2"
+                      className="text-purple-600 dark:text-purple-400 hover:underline mr-2 font-medium"
                     >
                       Edit
                     </Link>

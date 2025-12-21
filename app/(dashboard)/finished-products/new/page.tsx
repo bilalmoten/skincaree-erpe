@@ -8,21 +8,31 @@ interface Formulation {
   name: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  type: string;
+}
+
 export default function NewFinishedProductPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [formulations, setFormulations] = useState<Formulation[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
     price: '',
     formulation_id: '',
     units_per_batch: '1',
+    shelf_life_days: '',
+    category_id: '',
     notes: '',
   });
 
   useEffect(() => {
     fetchFormulations();
+    fetchCategories();
   }, []);
 
   const fetchFormulations = async () => {
@@ -32,6 +42,16 @@ export default function NewFinishedProductPage() {
       setFormulations(data);
     } catch (error) {
       console.error('Error fetching formulations:', error);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/material-categories');
+      const data = await res.json();
+      setCategories(data.filter((c: Category) => c.type === 'finished_good'));
+    } catch (error) {
+      console.error('Error fetching categories:', error);
     }
   };
 
@@ -114,6 +134,22 @@ export default function NewFinishedProductPage() {
         </div>
 
         <div>
+          <label className="block text-sm font-medium mb-1">Category</label>
+          <select
+            value={formData.category_id}
+            onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+            className="w-full border rounded px-3 py-2"
+          >
+            <option value="">Select Category</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
           <label className="block text-sm font-medium mb-1">Units per Batch</label>
           <input
             type="number"
@@ -125,6 +161,20 @@ export default function NewFinishedProductPage() {
           />
           <p className="text-xs text-gray-500 mt-1">
             Number of finished units produced from one batch. Example: If batch size is 1kg and this is 20, then 1kg = 20 finished units.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Shelf Life (Days)</label>
+          <input
+            type="number"
+            value={formData.shelf_life_days}
+            onChange={(e) => setFormData({ ...formData, shelf_life_days: e.target.value })}
+            className="w-full border rounded px-3 py-2"
+            placeholder="e.g., 365 (for 1 year)"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Number of days the product remains usable after production. Used to calculate expiry dates.
           </p>
         </div>
 

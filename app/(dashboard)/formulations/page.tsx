@@ -27,6 +27,8 @@ export default function FormulationsPage() {
   const [loading, setLoading] = useState(true);
   const [showImport, setShowImport] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     fetchFormulations();
@@ -36,7 +38,24 @@ export default function FormulationsPage() {
     try {
       const res = await fetch('/api/formulations');
       const data = await res.json();
-      setFormulations(data);
+      
+      // Fetch COGS for each formulation
+      const formulationsWithCOGS = await Promise.all(
+        data.map(async (formulation: Formulation) => {
+          try {
+            const cogsRes = await fetch(`/api/formulations/${formulation.id}/cogs`);
+            if (cogsRes.ok) {
+              const cogs = await cogsRes.json();
+              return { ...formulation, cogs };
+            }
+          } catch (error) {
+            console.error(`Error fetching COGS for ${formulation.id}:`, error);
+          }
+          return formulation;
+        })
+      );
+      
+      setFormulations(formulationsWithCOGS);
     } catch (error) {
       console.error('Error fetching formulations:', error);
     } finally {
@@ -45,6 +64,7 @@ export default function FormulationsPage() {
   };
 
   const handleExport = async () => {
+    setExporting(true);
     try {
       const res = await fetch('/api/formulations/excel/export');
       const blob = await res.blob();
@@ -56,6 +76,8 @@ export default function FormulationsPage() {
     } catch (error) {
       console.error('Error exporting:', error);
       alert('Failed to export');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -76,6 +98,7 @@ export default function FormulationsPage() {
   const handleImport = async () => {
     if (!importFile) return;
 
+    setImporting(true);
     const formData = new FormData();
     formData.append('file', importFile);
 
@@ -98,6 +121,8 @@ export default function FormulationsPage() {
     } catch (error) {
       console.error('Error importing:', error);
       alert('Failed to import');
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -106,31 +131,32 @@ export default function FormulationsPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Formulations</h1>
-        <div className="flex gap-2">
+    <div className="max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-purple-700 dark:text-purple-300">Formulations</h1>
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={handleDownloadTemplate}
-            className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+            className="px-3 sm:px-4 py-2 bg-purple-100 dark:bg-purple-800 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-700 transition-all text-sm font-medium"
           >
             Download Template
           </button>
           <button
             onClick={() => setShowImport(!showImport)}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all text-sm font-medium shadow-md hover:shadow-lg"
           >
             Import Excel
           </button>
           <button
             onClick={handleExport}
-            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+            disabled={exporting}
+            className="px-3 sm:px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-md hover:shadow-lg"
           >
-            Export Excel
+            {exporting ? 'Exporting...' : 'Export Excel'}
           </button>
           <Link
             href="/formulations/new"
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all text-sm font-medium shadow-md hover:shadow-lg"
           >
             Add New
           </Link>
@@ -138,28 +164,28 @@ export default function FormulationsPage() {
       </div>
 
       {showImport && (
-        <div className="mb-6 p-4 bg-gray-100 rounded">
-          <h2 className="font-semibold mb-2">Import from Excel</h2>
-          <div className="flex gap-2">
+        <div className="mb-6 p-4 sm:p-6 bg-white dark:bg-purple-900 rounded-xl shadow-lg border-2 border-purple-200 dark:border-purple-800">
+          <h2 className="font-semibold text-purple-700 dark:text-purple-300 mb-3">Import from Excel</h2>
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="file"
               accept=".xlsx,.xls"
               onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-              className="border rounded px-2 py-1"
+              className="flex-1 border-2 border-purple-200 dark:border-purple-700 rounded-lg px-3 py-2 dark:bg-purple-800 dark:text-white text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
             />
             <button
               onClick={handleImport}
-              disabled={!importFile}
-              className="px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+              disabled={importing || !importFile}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm"
             >
-              Import
+              {importing ? 'Importing...' : 'Import'}
             </button>
             <button
               onClick={() => {
                 setShowImport(false);
                 setImportFile(null);
               }}
-              className="px-4 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
+              className="px-4 py-2 bg-purple-100 dark:bg-purple-800 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-700 transition-all text-sm font-medium"
             >
               Cancel
             </button>
@@ -169,26 +195,42 @@ export default function FormulationsPage() {
 
       <div className="grid gap-4">
         {formulations.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No formulations found. Add your first formulation!
+          <div className="text-center py-12 bg-white dark:bg-purple-900 rounded-xl shadow-lg border-2 border-purple-200 dark:border-purple-800">
+            <p className="text-purple-600 dark:text-purple-400">No formulations found. Add your first formulation!</p>
           </div>
         ) : (
           formulations.map((formulation) => (
-            <div key={formulation.id} className="bg-white border rounded p-4">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h3 className="text-xl font-semibold">{formulation.name}</h3>
+            <div key={formulation.id} className="bg-white dark:bg-purple-900 border-2 border-purple-200 dark:border-purple-800 rounded-xl shadow-lg p-4 sm:p-6 hover:shadow-xl hover:border-purple-300 transition-all">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-3">
+                <div className="flex-1">
+                  <h3 className="text-lg sm:text-xl font-semibold text-purple-700 dark:text-purple-300">{formulation.name}</h3>
                   {formulation.description && (
-                    <p className="text-gray-600 text-sm">{formulation.description}</p>
+                    <p className="text-purple-600 dark:text-purple-400 text-sm mt-1">{formulation.description}</p>
                   )}
-                  <p className="text-sm text-gray-500">Batch Size: {formulation.batch_size}</p>
+                  <p className="text-sm text-purple-600 dark:text-purple-400 mt-2">
+                    Batch Size: {formulation.batch_size} {formulation.batch_unit || 'kg'}
+                  </p>
+                  {formulation.cogs && (
+                    <p className="text-sm text-green-600 dark:text-green-400 font-medium mt-2">
+                      COGS: PKR {formulation.cogs.totalCost.toFixed(2)} per batch 
+                      (PKR {formulation.cogs.costPerUnit.toFixed(2)} per {formulation.batch_unit || 'kg'})
+                    </p>
+                  )}
                 </div>
-                <Link
-                  href={`/formulations/${formulation.id}`}
-                  className="text-blue-600 hover:underline"
-                >
-                  Edit
-                </Link>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Link
+                    href={`/production?formulation=${formulation.id}`}
+                    className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all text-sm font-medium text-center shadow-md hover:shadow-lg"
+                  >
+                    Create Production
+                  </Link>
+                  <Link
+                    href={`/formulations/${formulation.id}`}
+                    className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all text-sm font-medium text-center shadow-md hover:shadow-lg"
+                  >
+                    Edit
+                  </Link>
+                </div>
               </div>
               <div className="mt-2">
                 <h4 className="font-medium text-sm mb-1">Ingredients:</h4>

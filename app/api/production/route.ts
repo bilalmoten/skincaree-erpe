@@ -4,7 +4,7 @@ import { createServerClient } from '@/lib/supabase/server';
 export async function GET() {
   try {
     const supabase = createServerClient();
-    
+
     // Get production runs - order by date and created_at to ensure latest first
     const { data: runs, error: runsError } = await supabase
       .from('production_runs')
@@ -22,13 +22,13 @@ export async function GET() {
     const formulationIds = [...new Set(runs.map((r: any) => r.formulation_id))];
     const { data: formulations } = await supabase
       .from('formulations')
-      .select('id, name')
+      .select('id, name, batch_unit')
       .in('id', formulationIds);
 
     const formulationMap = new Map();
     if (formulations) {
       formulations.forEach((f: any) => {
-        formulationMap.set(f.id, f.name);
+        formulationMap.set(f.id, { name: f.name, batch_unit: f.batch_unit || 'kg' });
       });
     }
 
@@ -39,17 +39,17 @@ export async function GET() {
       .select('production_run_id, quantity_used, raw_material_id')
       .in('production_run_id', runIds);
 
-    // Get raw material names
+    // Get raw material names and prices
     const materialIds = [...new Set(materialsUsed?.map((m: any) => m.raw_material_id) || [])];
     const { data: rawMaterials } = await supabase
       .from('raw_materials')
-      .select('id, name, unit')
+      .select('id, name, unit, last_price')
       .in('id', materialIds);
 
     const materialMap = new Map();
     if (rawMaterials) {
       rawMaterials.forEach((m: any) => {
-        materialMap.set(m.id, { name: m.name, unit: m.unit });
+        materialMap.set(m.id, { name: m.name, unit: m.unit, last_price: m.last_price });
       });
     }
 
@@ -65,8 +65,8 @@ export async function GET() {
         if (!productsByFormulation.has(p.formulation_id)) {
           productsByFormulation.set(p.formulation_id, []);
         }
-        productsByFormulation.get(p.formulation_id).push({ 
-          id: p.id, 
+        productsByFormulation.get(p.formulation_id).push({
+          id: p.id,
           name: p.name,
           units_per_batch: p.units_per_batch || 1
         });
@@ -81,7 +81,7 @@ export async function GET() {
         return {
           id: m.id,
           quantity_used: m.quantity_used,
-          raw_materials: material || { id: m.raw_material_id, name: 'Unknown', unit: '' }
+          raw_materials: material || { id: m.raw_material_id, name: 'Unknown', unit: '', last_price: null }
         };
       });
 
@@ -99,11 +99,13 @@ export async function GET() {
         };
       });
 
+      const formulation = formulationMap.get(run.formulation_id);
       return {
         ...run,
         formulations: {
           id: run.formulation_id,
-          name: formulationMap.get(run.formulation_id) || 'Unknown'
+          name: formulation?.name || 'Unknown',
+          batch_unit: formulation?.batch_unit
         },
         production_materials_used: materialsWithNames,
         finished_products: linkedProducts.map((p: any) => ({ id: p.id, name: p.name })),
@@ -201,6 +203,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Calculate expiry date if shelf life is available
+    let expiryDate = null;
+    if (finished_product_id) {
+      const { data: product } = await supabase
+        .from('finished_products')
+        .select('shelf_life_days')
+        .eq('id', finished_product_id)
+        .single();
+
+      if (product?.shelf_life_days) {
+        const prodDate = new Date(production_date || new Date().toISOString().split('T')[0]);
+        prodDate.setDate(prodDate.getDate() + product.shelf_life_days);
+        expiryDate = prodDate.toISOString().split('T')[0];
+      }
+    }
+
     // Create production run
     const { data: productionRun, error: runError } = await supabase
       .from('production_runs')
@@ -208,12 +226,24 @@ export async function POST(request: NextRequest) {
         formulation_id,
         batch_size: parseFloat(batch_size),
         production_date: production_date || new Date().toISOString().split('T')[0],
+        expiry_date: expiryDate,
         notes: notes || null,
       })
       .select()
       .single();
 
     if (runError) throw runError;
+
+    // Generate batch number after production run is created
+    const batchNumber = `BATCH-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${productionRun.id.slice(0, 8).toUpperCase()}`;
+
+    // Update production run with batch number
+    await supabase
+      .from('production_runs')
+      .update({ batch_number: batchNumber })
+      .eq('id', productionRun.id);
+
+    productionRun.batch_number = batchNumber;
 
     // Record materials used and update inventory
     const materialsUsed = [];
@@ -238,6 +268,11 @@ export async function POST(request: NextRequest) {
       const currentQuantity = inventoryMap.get(ing.raw_material_id) || 0;
       const newQuantity = currentQuantity - quantityUsed;
 
+      // Validate negative inventory
+      if (newQuantity < 0) {
+        throw new Error(`Insufficient inventory for material. Available: ${currentQuantity}, Required: ${quantityUsed}`);
+      }
+
       await supabase
         .from('raw_material_inventory')
         .upsert({
@@ -251,7 +286,7 @@ export async function POST(request: NextRequest) {
     // Update finished product inventory
     // Calculate finished units based on batch_size and units_per_batch
     let finishedProductResult = null;
-    
+
     if (finished_product_id) {
       // Use the selected finished product
       const { data: product } = await supabase
@@ -299,7 +334,7 @@ export async function POST(request: NextRequest) {
 
       if (finishedProducts && finishedProducts.length > 0) {
         const results = [];
-        
+
         for (const product of finishedProducts) {
           const unitsPerBatch = product.units_per_batch || 1;
           const producedUnits = Math.floor(parseFloat(batch_size) * unitsPerBatch);
@@ -334,8 +369,54 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ 
-      ...productionRun, 
+    // Create bulk product inventory if bulk product exists for this formulation
+    const { data: bulkProduct } = await supabase
+      .from('bulk_products')
+      .select('id')
+      .eq('formulation_id', formulation_id)
+      .single();
+
+    if (bulkProduct) {
+      // Add bulk product inventory
+      const { data: currentBulkInv } = await supabase
+        .from('bulk_product_inventory')
+        .select('quantity')
+        .eq('bulk_product_id', bulkProduct.id)
+        .single();
+
+      const currentBulkQty = currentBulkInv?.quantity || 0;
+      await supabase
+        .from('bulk_product_inventory')
+        .upsert({
+          bulk_product_id: bulkProduct.id,
+          quantity: currentBulkQty + parseFloat(batch_size),
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'bulk_product_id',
+        });
+    }
+
+    // Create batch tracking entry if finished products were produced
+    if (finishedProductResult) {
+      const products = Array.isArray(finishedProductResult) ? finishedProductResult : [finishedProductResult];
+      for (const product of products) {
+        await supabase
+          .from('batch_tracking')
+          .insert({
+            batch_number: batchNumber,
+            production_run_id: productionRun.id,
+            finished_product_id: product.id,
+            quantity_produced: product.quantity_produced,
+            quantity_remaining: product.quantity_produced,
+            production_date: production_date || new Date().toISOString().split('T')[0],
+            expiry_date: expiryDate,
+            status: 'active',
+          });
+      }
+    }
+
+    return NextResponse.json({
+      ...productionRun,
       production_materials_used: materialsUsed,
       finished_products_produced: finishedProductResult
     });

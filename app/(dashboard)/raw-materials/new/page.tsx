@@ -3,16 +3,38 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+interface Category {
+  id: string;
+  name: string;
+  type: string;
+}
+
 export default function NewRawMaterialPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     unit: '',
     supplier: '',
     last_price: '',
     notes: '',
+    category_id: '',
   });
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/material-categories');
+      const data = await res.json();
+      setCategories(data.filter((c: Category) => c.type === 'ingredient' || c.type === 'packaging'));
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +86,22 @@ export default function NewRawMaterialPage() {
             className="w-full border rounded px-3 py-2"
             placeholder="e.g., kg, L, g"
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Category</label>
+          <select
+            value={formData.category_id}
+            onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+            className="w-full border rounded px-3 py-2"
+          >
+            <option value="">Select Category</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>

@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient();
     const body = await request.json();
 
-    const { name, unit, supplier, last_price, notes } = body;
+    const { name, unit, supplier, last_price, notes, category_id } = body;
 
     // Insert raw material
     const { data: material, error: materialError } = await supabase
@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
         supplier: supplier || null,
         last_price: last_price ? parseFloat(last_price) : null,
         notes: notes || null,
+        category_id: category_id || null,
       })
       .select()
       .single();

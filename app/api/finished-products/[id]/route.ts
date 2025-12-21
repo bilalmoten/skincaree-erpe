@@ -9,24 +9,29 @@ export async function GET(
     const supabase = createServerClient();
     const { id } = await params;
     
-    const { data, error } = await supabase
+    // Get the finished product
+    const { data: product, error: productError } = await supabase
       .from('finished_products')
-      .select(`
-        *,
-        finished_product_inventory (
-          id,
-          quantity
-        ),
-        formulations (
-          id,
-          name
-        )
-      `)
+      .select('*')
       .eq('id', id)
       .single();
 
-    if (error) throw error;
-    return NextResponse.json(data);
+    if (productError) throw productError;
+
+    // Get the inventory record separately
+    const { data: inventory, error: inventoryError } = await supabase
+      .from('finished_product_inventory')
+      .select('id, quantity')
+      .eq('finished_product_id', id)
+      .single();
+
+    // Combine the data
+    const productWithInventory = {
+      ...product,
+      finished_product_inventory: inventory ? [inventory] : [{ id: '', quantity: 0 }]
+    };
+
+    return NextResponse.json(productWithInventory);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -41,7 +46,7 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const { name, sku, price, formulation_id, units_per_batch, notes } = body;
+    const { name, sku, price, formulation_id, units_per_batch, shelf_life_days, category_id, notes } = body;
 
     const { data, error } = await supabase
       .from('finished_products')
@@ -51,6 +56,8 @@ export async function PUT(
         price: parseFloat(price),
         formulation_id: formulation_id || null,
         units_per_batch: units_per_batch ? parseFloat(units_per_batch) : 1,
+        shelf_life_days: shelf_life_days ? parseInt(shelf_life_days) : null,
+        category_id: category_id || null,
         notes: notes || null,
       })
       .eq('id', id)

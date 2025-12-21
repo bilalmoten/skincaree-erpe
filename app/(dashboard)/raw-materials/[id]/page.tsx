@@ -11,7 +11,14 @@ interface RawMaterial {
   supplier: string | null;
   last_price: number | null;
   notes: string | null;
+  category_id: string | null;
   raw_material_inventory: Array<{ id: string; quantity: number }>;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  type: string;
 }
 
 export default function EditRawMaterialPage() {
@@ -22,6 +29,7 @@ export default function EditRawMaterialPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [material, setMaterial] = useState<RawMaterial | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     unit: '',
@@ -29,13 +37,26 @@ export default function EditRawMaterialPage() {
     last_price: '',
     notes: '',
     quantity: '',
+    category_id: '',
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (id) {
       fetchMaterial();
+      fetchCategories();
     }
   }, [id]);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/material-categories');
+      const data = await res.json();
+      setCategories(data.filter((c: Category) => c.type === 'ingredient' || c.type === 'packaging'));
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
 
   const fetchMaterial = async () => {
     try {
@@ -49,6 +70,7 @@ export default function EditRawMaterialPage() {
         last_price: data.last_price?.toString() || '',
         notes: data.notes || '',
         quantity: data.raw_material_inventory?.[0]?.quantity?.toString() || '0',
+        category_id: data.category_id || '',
       });
     } catch (error) {
       console.error('Error fetching material:', error);
@@ -72,6 +94,7 @@ export default function EditRawMaterialPage() {
           supplier: formData.supplier,
           last_price: formData.last_price,
           notes: formData.notes,
+          category_id: formData.category_id || null,
         }),
       });
 
@@ -166,6 +189,22 @@ export default function EditRawMaterialPage() {
                 onChange={(e) => setFormData({ ...formData, last_price: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+              <select
+                value={formData.category_id}
+                onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+              >
+                <option value="">Select Category</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
