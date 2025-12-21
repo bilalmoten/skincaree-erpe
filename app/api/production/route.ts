@@ -186,12 +186,12 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    const insufficient = materialChecks.filter((check) => !check.sufficient);
+    const insufficient = materialChecks.filter((check: { raw_material_id: string; required: number; available: number; sufficient: boolean }) => !check.sufficient);
     if (insufficient.length > 0) {
       return NextResponse.json(
         {
           error: 'Insufficient inventory',
-          details: insufficient.map((check) => ({
+          details: insufficient.map((check: { raw_material_id: string; required: number; available: number; sufficient: boolean }) => ({
             material_id: check.raw_material_id,
             required: check.required,
             available: check.available,
