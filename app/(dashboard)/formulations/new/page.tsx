@@ -231,7 +231,7 @@ export default function NewFormulationPage() {
                 {ingredients.map((ingredient, index) => {
                   const material = rawMaterials.find(m => m.id === ingredient.raw_material_id);
                   return (
-                    <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <div key={index} className="border border-gray-200 rounded-lg p-4 bg-[var(--surface-muted)]">
                       <div className="grid grid-cols-12 gap-3 items-end">
                         <div className="col-span-12 md:col-span-4">
                           <label className="block text-xs font-medium text-gray-700 mb-1">Material *</label>

@@ -1,37 +1,45 @@
 @import "tailwindcss";
 
 :root {
-  --purple-primary: #7C3AED;
-  --purple-primary-dark: #6D28D9;
-  --purple-primary-light: #8B5CF6;
-  --purple-bg: #F5F3FF;
-  --purple-accent: #A78BFA;
+  --purple-primary: #6C4DE6;
+  --purple-primary-dark: #5A3BD4;
+  --purple-primary-light: #8A75F0;
+  --purple-bg: #F7F5FF;
+  --purple-accent: #7452E3;
   --card-bg: #FFFFFF;
-  --text-primary: #1F1B24;
-  --text-secondary: #6B7280;
-  --background: #F5F3FF;
-  --foreground: #1F1B24;
+  --text-primary: #0F0F14;
+  --text-secondary: #4B5563;
+  --background: #F7F5FF;
+  --foreground: #0F0F14;
   --card: #ffffff;
-  --border: #E9D5FF;
-  --primary: #7C3AED;
-  --primary-hover: #6D28D9;
+  --border: #E8E3FF;
+  --surface-muted: #F1EFFF;
+  --primary: #6C4DE6;
+  --primary-hover: #5A3BD4;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 .dark {
   --purple-primary: #8B5CF6;
   --purple-primary-dark: #7C3AED;
   --purple-primary-light: #A78BFA;
-  --purple-bg: #1F1B24;
+  --purple-bg: #0F172A;
   --purple-accent: #7C3AED;
-  --card-bg: #1F1B24;
-  --text-primary: #F5F3FF;
-  --text-secondary: #A78BFA;
-  --background: #1F1B24;
-  --foreground: #F5F3FF;
-  --card: #1F1B24;
-  --border: #4C1D95;
+  --card-bg: #1E293B;
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --background: #0F172A;
+  --foreground: #F1F5F9;
+  --card: #1E293B;
+  --border: #334155;
+  --surface-muted: #1E2638;
   --primary: #8B5CF6;
   --primary-hover: #7C3AED;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
 }
 
 @theme inline {
@@ -42,10 +50,15 @@
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
+  background-image: radial-gradient(120% 120% at 20% 20%, rgba(116, 82, 227, 0.08), transparent 45%), radial-gradient(100% 100% at 80% 0%, rgba(140, 117, 240, 0.07), transparent 35%);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.dark body {
+  background-image: none;
 }
 
 @keyframes slide-in {

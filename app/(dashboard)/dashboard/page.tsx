@@ -41,115 +41,196 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-purple-700 dark:text-purple-300">Dashboard</h1>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Dashboard</h1>
+        <p className="text-gray-600 dark:text-gray-400">Overview of your business operations</p>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white dark:bg-purple-900 border-2 border-purple-200 dark:border-purple-800 rounded-xl p-6 shadow-lg hover:shadow-xl hover:border-purple-300 transition-all">
-          <h3 className="text-sm text-purple-700 dark:text-purple-300 mb-2 font-medium">Recent Revenue (30 days)</h3>
-          <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">PKR {dashboardData?.recentRevenue?.toFixed(2) || '0.00'}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700 hover:shadow-md transition-all">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">Recent Revenue</h3>
+            <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+              <span className="text-purple-600 dark:text-purple-400">💰</span>
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">PKR {dashboardData?.recentRevenue?.toFixed(2) || '0.00'}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Last 30 days</p>
         </div>
 
-        <div className="bg-white dark:bg-purple-900 border-2 border-purple-200 dark:border-purple-800 rounded-xl p-6 shadow-lg hover:shadow-xl hover:border-purple-300 transition-all">
-          <h3 className="text-sm text-purple-700 dark:text-purple-300 mb-2 font-medium">Total Customers</h3>
-          <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">{dashboardData?.customerCount || 0}</p>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700 hover:shadow-md transition-all">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Customers</h3>
+            <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+              <span className="text-blue-600 dark:text-blue-400">👥</span>
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">{dashboardData?.customerCount || 0}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Active customers</p>
         </div>
 
-        <div className="bg-white dark:bg-purple-900 border-2 border-purple-200 dark:border-purple-800 rounded-xl p-6 shadow-lg hover:shadow-xl hover:border-purple-300 transition-all">
-          <h3 className="text-sm text-purple-700 dark:text-purple-300 mb-2 font-medium">Low Stock Items</h3>
-          <p className="text-3xl font-bold text-red-600 dark:text-red-400">{dashboardData?.lowStock?.length || 0}</p>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700 hover:shadow-md transition-all">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">Low Stock Items</h3>
+            <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+              <span className="text-red-600 dark:text-red-400">⚠️</span>
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-red-600 dark:text-red-400 mb-1">{dashboardData?.lowStock?.length || 0}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Needs attention</p>
         </div>
 
-        <div className="bg-white dark:bg-purple-900 border-2 border-purple-200 dark:border-purple-800 rounded-xl p-6 shadow-lg hover:shadow-xl hover:border-purple-300 transition-all">
-          <h3 className="text-sm text-purple-700 dark:text-purple-300 mb-2 font-medium">Recent Production Runs</h3>
-          <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">{dashboardData?.recentProduction?.length || 0}</p>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700 hover:shadow-md transition-all">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">Production Runs</h3>
+            <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <span className="text-green-600 dark:text-green-400">🏭</span>
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">{dashboardData?.recentProduction?.length || 0}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Recent batches</p>
         </div>
       </div>
 
-      {dashboardData?.lowStock && dashboardData.lowStock.length > 0 && (
-        <div className="bg-white dark:bg-purple-900 border-2 border-purple-200 dark:border-purple-800 rounded-xl p-6 mb-6 shadow-lg">
-          <h2 className="text-xl font-semibold mb-4 text-purple-700 dark:text-purple-300">Low Stock Alert</h2>
-          <ul className="space-y-2">
-            {dashboardData.lowStock.map((item: any, idx: number) => (
-              <li key={idx} className="flex justify-between text-gray-900 dark:text-white">
-                <span>{item.finished_products?.name}</span>
-                <span className="text-red-600 dark:text-red-400 font-semibold">Qty: {item.quantity}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-
-      {expiryAlerts && (expiryAlerts.batches?.length > 0 || expiryAlerts.inventory?.length > 0) && (
-        <div className="bg-white dark:bg-purple-900 border-2 border-red-200 dark:border-red-800 rounded-xl p-6 mb-6 shadow-lg">
-          <h2 className="text-xl font-semibold mb-4 text-red-600 dark:text-red-400">Expiry Alerts (Next 30 Days)</h2>
-          <ul className="space-y-2">
-            {expiryAlerts.batches?.map((batch: any, idx: number) => (
-              <li key={idx} className="flex justify-between text-gray-900 dark:text-white">
-                <span>{batch.finished_products?.name} - Batch: {batch.batch_number}</span>
-                <span className="text-red-600 dark:text-red-400 font-semibold">
-                  Expires: {format(new Date(batch.expiry_date), 'MMM dd, yyyy')}
-                </span>
-              </li>
-            ))}
-            {expiryAlerts.inventory?.map((item: any, idx: number) => (
-              <li key={idx} className="flex justify-between text-gray-900 dark:text-white">
-                <span>{item.finished_products?.name} - Qty: {item.quantity}</span>
-                <span className="text-red-600 dark:text-red-400 font-semibold">
-                  Expires: {format(new Date(item.expiry_date), 'MMM dd, yyyy')}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {dashboardData?.recentProduction && dashboardData.recentProduction.length > 0 && (
-        <div className="bg-white dark:bg-purple-900 border-2 border-purple-200 dark:border-purple-800 rounded-xl p-6 shadow-lg mb-6">
-          <h2 className="text-xl font-semibold mb-4 text-purple-700 dark:text-purple-300">Recent Production Runs</h2>
-          <div className="space-y-2">
-            {dashboardData.recentProduction.map((run: any) => (
-              <div key={run.id} className="flex justify-between items-center border-b border-purple-200 dark:border-purple-800 pb-2">
-                <div>
-                  <p className="font-medium text-purple-700 dark:text-purple-300">
-                    {run.formulations?.name || 'Unknown'} - Batch Size: {run.batch_size} {run.formulations?.batch_unit || 'kg'}
-                    {run.batch_number && <span className="text-sm text-purple-600 dark:text-purple-400 ml-2">({run.batch_number})</span>}
-                  </p>
-                  <p className="text-sm text-purple-600 dark:text-purple-400">
-                    {format(new Date(run.production_date), 'MMM dd, yyyy')}
-                  </p>
-                </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Left Column */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Recent Production Runs */}
+          {dashboardData?.recentProduction && dashboardData.recentProduction.length > 0 && (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Production Runs</h2>
+                <Link href="/production" className="text-sm text-purple-600 dark:text-purple-400 hover:underline font-medium">
+                  See All
+                </Link>
               </div>
-            ))}
+              <div className="space-y-4">
+                {dashboardData.recentProduction.slice(0, 5).map((run: any) => (
+                  <div key={run.id} className="flex items-center justify-between p-4 rounded-xl bg-[var(--surface-muted)] dark:bg-slate-700/50 hover:bg-white dark:hover:bg-slate-700 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                        <span className="text-purple-600 dark:text-purple-400 text-xl">🏭</span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">
+                          {run.formulations?.name || 'Unknown'}
+                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {format(new Date(run.production_date), 'MMM dd, yyyy')} • Batch: {run.batch_size} {run.formulations?.batch_unit || 'kg'}
+                        </p>
+                      </div>
+                    </div>
+                    {run.batch_number && (
+                      <span className="text-xs font-medium px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                        {run.batch_number}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Low Stock Alert */}
+          {dashboardData?.lowStock && dashboardData.lowStock.length > 0 && (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-red-100 dark:border-red-900/30">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <span className="text-red-600 dark:text-red-400">⚠️</span>
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Low Stock Alert</h2>
+              </div>
+              <div className="space-y-3">
+                {dashboardData.lowStock.map((item: any, idx: number) => (
+                  <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-red-50 dark:bg-red-900/10">
+                    <span className="font-medium text-gray-900 dark:text-white">{item.finished_products?.name}</span>
+                    <span className="text-sm font-semibold text-red-600 dark:text-red-400">Qty: {item.quantity}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-6">
+          {/* Expiry Alerts */}
+          {expiryAlerts && (expiryAlerts.batches?.length > 0 || expiryAlerts.inventory?.length > 0) && (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-orange-100 dark:border-orange-900/30">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                  <span className="text-orange-600 dark:text-orange-400">⏰</span>
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Expiry Alerts</h2>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Next 30 days</p>
+              <div className="space-y-3">
+                {expiryAlerts.batches?.slice(0, 3).map((batch: any, idx: number) => (
+                  <div key={idx} className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/10">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">{batch.finished_products?.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Batch: {batch.batch_number}</p>
+                    <p className="text-xs font-semibold text-orange-600 dark:text-orange-400">
+                      Expires: {format(new Date(batch.expiry_date), 'MMM dd, yyyy')}
+                    </p>
+                  </div>
+                ))}
+                {expiryAlerts.inventory?.slice(0, 2).map((item: any, idx: number) => (
+                  <div key={idx} className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/10">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">{item.finished_products?.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Qty: {item.quantity}</p>
+                    <p className="text-xs font-semibold text-orange-600 dark:text-orange-400">
+                      Expires: {format(new Date(item.expiry_date), 'MMM dd, yyyy')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Quick Actions */}
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-slate-700">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
+            <div className="space-y-3">
+              <Link
+                href="/sales/new"
+                className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 transition-all shadow-sm"
+              >
+                <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+                  <span>💰</span>
+                </div>
+                <div>
+                  <p className="font-semibold">New Sale</p>
+                  <p className="text-xs text-white/80">Create transaction</p>
+                </div>
+              </Link>
+              <Link
+                href="/production"
+                className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 transition-all shadow-sm"
+              >
+                <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+                  <span>🏭</span>
+                </div>
+                <div>
+                  <p className="font-semibold">Production Run</p>
+                  <p className="text-xs text-white/80">Record batch</p>
+                </div>
+              </Link>
+              <Link
+                href="/reports"
+                className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all shadow-sm"
+              >
+                <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+                  <span>📊</span>
+                </div>
+                <div>
+                  <p className="font-semibold">View Reports</p>
+                  <p className="text-xs text-white/80">Analytics</p>
+                </div>
+              </Link>
+            </div>
           </div>
         </div>
-      )}
-
-      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Link
-          href="/sales/new"
-          className="bg-purple-600 text-white rounded-xl p-6 text-center hover:bg-purple-700 transition-all shadow-md hover:shadow-lg font-medium"
-        >
-          <h3 className="text-lg font-semibold mb-2">New Sale</h3>
-          <p className="text-sm opacity-90">Create a new sales transaction</p>
-        </Link>
-
-        <Link
-          href="/production"
-          className="bg-green-500 text-white rounded-xl p-6 text-center hover:bg-green-600 transition-all shadow-md hover:shadow-lg font-medium"
-        >
-          <h3 className="text-lg font-semibold mb-2">Production Run</h3>
-          <p className="text-sm opacity-90">Record a new production batch</p>
-        </Link>
-
-        <Link
-          href="/reports"
-          className="bg-purple-600 text-white rounded-xl p-6 text-center hover:bg-purple-700 transition-all shadow-md hover:shadow-lg font-medium"
-        >
-          <h3 className="text-lg font-semibold mb-2">View Reports</h3>
-          <p className="text-sm opacity-90">Generate business reports</p>
-        </Link>
       </div>
     </div>
   );

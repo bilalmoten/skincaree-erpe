@@ -161,7 +161,7 @@ export default function ReportsPage() {
                       </thead>
                       <tbody>
                         {salesData.byProduct.map((product: any, idx: number) => (
-                          <tr key={idx} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                          <tr key={idx} className="border-b border-gray-100 dark:border-gray-700 hover:bg-[var(--surface-muted)] dark:hover:bg-gray-700">
                             <td className="py-3 px-4 text-gray-900 dark:text-white">{product.name}</td>
                             <td className="text-right py-3 px-4 text-gray-900 dark:text-white">{product.quantity}</td>
                             <td className="text-right py-3 px-4 font-semibold text-gray-900 dark:text-white">PKR {product.revenue.toFixed(2)}</td>

@@ -133,7 +133,7 @@ export default function FormulationsPage() {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-purple-700 dark:text-purple-300">Formulations</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Formulations</h1>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={handleDownloadTemplate}
@@ -200,14 +200,14 @@ export default function FormulationsPage() {
           </div>
         ) : (
           formulations.map((formulation) => (
-            <div key={formulation.id} className="bg-white dark:bg-purple-900 border-2 border-purple-200 dark:border-purple-800 rounded-xl shadow-lg p-4 sm:p-6 hover:shadow-xl hover:border-purple-300 transition-all">
+            <div key={formulation.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 p-6 hover:shadow-md transition-all">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-3">
                 <div className="flex-1">
-                  <h3 className="text-lg sm:text-xl font-semibold text-purple-700 dark:text-purple-300">{formulation.name}</h3>
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-1">{formulation.name}</h3>
                   {formulation.description && (
-                    <p className="text-purple-600 dark:text-purple-400 text-sm mt-1">{formulation.description}</p>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm mt-1 mb-2">{formulation.description}</p>
                   )}
-                  <p className="text-sm text-purple-600 dark:text-purple-400 mt-2">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
                     Batch Size: {formulation.batch_size} {formulation.batch_unit || 'kg'}
                   </p>
                   {formulation.cogs && (

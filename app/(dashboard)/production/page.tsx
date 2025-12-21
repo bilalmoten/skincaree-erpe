@@ -267,9 +267,9 @@ function ProductionPageContent() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="bg-white dark:bg-purple-900 rounded-xl shadow-lg border-2 border-purple-200 dark:border-purple-800 p-4 sm:p-6 mb-6">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-          <h1 className="text-2xl sm:text-3xl font-bold text-purple-700 dark:text-purple-300">Production Runs</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Production Runs</h1>
           <div className="flex flex-wrap gap-2">
             <button
               onClick={handleDownloadTemplate}
@@ -474,13 +474,13 @@ function ProductionPageContent() {
           </div>
         ) : (
           filteredRuns.map((run) => (
-            <div key={run.id} className="bg-white dark:bg-purple-900 rounded-xl shadow-lg border-2 border-purple-200 dark:border-purple-800 p-6 hover:shadow-xl hover:border-purple-300 transition-all">
+            <div key={run.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 p-6 hover:shadow-md transition-all">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-300">{run.formulations?.name}</h3>
-                  <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">
-                    Batch Size: {run.batch_size} {run.formulations?.batch_unit || 'kg'} | Date: {format(new Date(run.production_date), 'MMM dd, yyyy')}
-                    {run.batch_number && <span className="ml-2 font-medium">| Batch: {run.batch_number}</span>}
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{run.formulations?.name}</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Batch Size: {run.batch_size} {run.formulations?.batch_unit || 'kg'} • {format(new Date(run.production_date), 'MMM dd, yyyy')}
+                    {run.batch_number && <span className="ml-2 px-2 py-0.5 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-medium">Batch: {run.batch_number}</span>}
                   </p>
                   {run.expiry_date && (
                     <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">

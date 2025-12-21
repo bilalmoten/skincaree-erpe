@@ -205,7 +205,7 @@ export default function CategoriesPage() {
             ) : (
               <ul className="space-y-2">
                 {getCategoriesByType(type).map((category) => (
-                  <li key={category.id} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
+                  <li key={category.id} className="flex justify-between items-center p-2 hover:bg-[var(--surface-muted)] rounded">
                     <span>{category.name}</span>
                     <div className="flex gap-2">
                       <button

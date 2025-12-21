@@ -199,7 +199,7 @@ export default function CustomerLedgerPage() {
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white border border-gray-200">
           <thead>
-            <tr className="bg-gray-50">
+            <tr className="bg-[var(--surface-muted)]">
               <th className="px-4 py-2 text-left border">Date</th>
               <th className="px-4 py-2 text-left border">Type</th>
               <th className="px-4 py-2 text-left border">Amount</th>
@@ -216,7 +216,7 @@ export default function CustomerLedgerPage() {
               </tr>
             ) : (
               ledger.map((entry) => (
-                <tr key={entry.id} className="hover:bg-gray-50">
+                <tr key={entry.id} className="hover:bg-[var(--surface-muted)]">
                   <td className="px-4 py-2 border">
                     {format(new Date(entry.transaction_date), 'MMM dd, yyyy')}
                   </td>

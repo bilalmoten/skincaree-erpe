@@ -199,7 +199,7 @@ export default function RawMaterialsPage() {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-[var(--surface-muted)]">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
@@ -218,7 +218,7 @@ export default function RawMaterialsPage() {
                 </tr>
               ) : (
                 filteredMaterials.map((material) => (
-                  <tr key={material.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={material.id} className="hover:bg-[var(--surface-muted)] transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{material.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{material.unit}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{material.supplier || '-'}</td>

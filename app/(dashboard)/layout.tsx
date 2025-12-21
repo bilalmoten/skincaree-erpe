@@ -48,7 +48,7 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="min-h-screen bg-purple-50 dark:bg-purple-950 transition-colors">
+    <div className="min-h-screen bg-[var(--background)] transition-colors">
       {/* Mobile menu overlay */}
       {mobileMenuOpen && (
         <div
@@ -58,13 +58,16 @@ export default function DashboardLayout({
       )}
 
       {/* Navigation */}
-      <nav className="bg-white dark:bg-purple-900 shadow-lg border-b-2 border-purple-200 dark:border-purple-800 sticky top-0 z-50">
+      <nav className="bg-white/90 backdrop-blur-sm dark:bg-slate-800 shadow-sm border-b border-[var(--border)] sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo and Desktop Menu */}
             <div className="flex items-center flex-1">
-              <Link href="/dashboard" className="text-xl font-bold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-colors">
-                Skincare ERP
+              <Link href="/dashboard" className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center shadow-sm">
+                  <span className="text-white font-bold text-lg">S</span>
+                </div>
+                <span className="text-xl font-bold text-gray-900 dark:text-white">Skincare ERP</span>
               </Link>
               
               {/* Desktop Navigation */}
@@ -73,13 +76,13 @@ export default function DashboardLayout({
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                       isActive(item.href)
-                        ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400'
+                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 shadow-sm'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-900 dark:hover:text-white'
                     }`}
                   >
-                    <span className="mr-2">{item.icon}</span>
+                    <span className="mr-2 text-base">{item.icon}</span>
                     {item.name}
                   </Link>
                 ))}
@@ -87,11 +90,11 @@ export default function DashboardLayout({
             </div>
 
             {/* Right side - Theme toggle and Mobile menu button */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {mounted && (
                 <button
                   onClick={toggleTheme}
-                  className="p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+                  className="p-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                   aria-label="Toggle theme"
                 >
                   {theme === 'dark' ? (
@@ -109,7 +112,7 @@ export default function DashboardLayout({
               {/* Mobile menu button */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+                className="lg:hidden p-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                 aria-label="Toggle menu"
               >
                 {mobileMenuOpen ? (
@@ -129,19 +132,22 @@ export default function DashboardLayout({
 
       {/* Mobile Sidebar Menu */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-purple-900 shadow-xl transform transition-transform duration-300 ease-in-out lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-800 shadow-xl transform transition-transform duration-300 ease-in-out lg:hidden ${
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <div className="flex flex-col h-full">
           {/* Mobile menu header */}
-          <div className="flex items-center justify-between h-16 px-4 border-b-2 border-purple-200 dark:border-purple-800">
-            <Link href="/dashboard" className="text-lg font-bold text-purple-600 dark:text-purple-400">
-              Skincare ERP
+          <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-slate-700">
+            <Link href="/dashboard" className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center">
+                <span className="text-white font-bold text-sm">S</span>
+              </div>
+              <span className="text-lg font-bold text-gray-900 dark:text-white">Skincare ERP</span>
             </Link>
             <button
               onClick={() => setMobileMenuOpen(false)}
-              className="p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-800"
+              className="p-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -156,10 +162,10 @@ export default function DashboardLayout({
                 key={item.name}
                 href={item.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center px-4 py-3 mx-2 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center px-4 py-3 mx-2 rounded-xl text-sm font-medium transition-all ${
                   isActive(item.href)
-                    ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-800'
+                    ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 shadow-sm'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'
                 }`}
               >
                 <span className="mr-3 text-lg">{item.icon}</span>
@@ -171,7 +177,7 @@ export default function DashboardLayout({
       </div>
 
       {/* Main content */}
-      <main className="py-4 sm:py-6 px-4 sm:px-6 lg:px-8">{children}</main>
+      <main className="min-h-screen">{children}</main>
     </div>
   );
 }
