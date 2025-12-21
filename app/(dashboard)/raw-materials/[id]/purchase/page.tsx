@@ -167,4 +167,3 @@ export default function PurchaseRawMaterialPage() {
     </div>
   );
 }
-

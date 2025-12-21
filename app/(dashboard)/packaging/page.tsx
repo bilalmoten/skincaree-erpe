@@ -448,4 +448,3 @@ export default function PackagingPage() {
     </div>
   );
 }
-

@@ -10,6 +10,8 @@ interface ProductionRun {
   batch_size: number;
   production_date: string;
   notes: string | null;
+  batch_number: string | null;
+  expiry_date: string | null;
   formulations: {
     name: string;
     batch_unit?: string;
@@ -32,6 +34,10 @@ interface ProductionRun {
     batch_size: number;
     units_per_batch: number;
   }>;
+  cogs?: {
+    totalCost: number;
+    costPerUnit: number;
+  } | null;
 }
 
 interface Formulation {

@@ -249,4 +249,3 @@ export default function CustomerLedgerPage() {
     </div>
   );
 }
-

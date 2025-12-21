@@ -238,7 +238,7 @@ export default function CustomersPage() {
           </tbody>
         </table>
       </div>
+      </div>
     </div>
   );
 }
-

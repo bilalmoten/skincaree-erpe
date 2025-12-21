@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 interface Category {
   id: string;
@@ -155,4 +156,3 @@ export default function NewRawMaterialPage() {
     </div>
   );
 }
-

@@ -19,7 +19,12 @@ interface Formulation {
   name: string;
   description: string | null;
   batch_size: number;
+  batch_unit: string | null;
   formulation_ingredients: Ingredient[];
+  cogs?: {
+    totalCost: number;
+    costPerUnit: number;
+  } | null;
 }
 
 export default function FormulationsPage() {
@@ -249,4 +254,3 @@ export default function FormulationsPage() {
     </div>
   );
 }
-

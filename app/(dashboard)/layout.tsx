@@ -19,6 +19,7 @@ const navigation = [
   { name: 'Customers', href: '/customers', icon: '👥' },
   { name: 'Sales', href: '/sales', icon: '💰' },
   { name: 'Reports', href: '/reports', icon: '📈' },
+  { name: 'Settings', href: '/settings', icon: '⚙️' },
 ];
 
 export default function DashboardLayout({

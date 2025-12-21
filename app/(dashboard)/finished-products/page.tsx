@@ -240,7 +240,7 @@ export default function FinishedProductsPage() {
           </tbody>
         </table>
       </div>
+      </div>
     </div>
   );
 }
-
