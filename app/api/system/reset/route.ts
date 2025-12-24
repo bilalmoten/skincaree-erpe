@@ -7,12 +7,14 @@ const isMissingRelationError = (error: any) => {
   const code = error?.code;
   const message = typeof error?.message === 'string' ? error.message.toLowerCase() : '';
   return (
-    code === 'PGRST116' ||
-    code === 'PGRST117' ||
-    code === '42P01' ||
-    code === '42704' ||
-    code === '42703' ||
-    message.includes('does not exist')
+    code === 'PGRST116' || // relation missing / empty
+    code === 'PGRST117' || // relation missing / empty
+    code === 'PGRST205' || // schema cache miss
+    code === '42P01' || // undefined table
+    code === '42704' || // undefined object
+    code === '42703' || // undefined column
+    message.includes('does not exist') ||
+    message.includes('schema cache')
   );
 };
 
@@ -49,29 +51,30 @@ export async function POST(req: NextRequest) {
     throw error;
   };
 
+  // Delete order respects FK constraints: children first, parents last
   const fullResetTables = [
     'customer_ledger',
     'sales_items',
     'sales',
-    'quality_tests',
-    'production_materials_used',
-    'production_runs',
     'packaging_materials_used',
     'packaging_runs',
+    'production_materials_used',
+    'quality_tests',
+    'production_runs',
     'batch_tracking',
-    'bulk_product_inventory',
-    'bulk_products',
-    'formulation_ingredients',
-    'finished_product_inventory',
-    'finished_products',
     'purchase_order_items',
     'cost_history',
     'purchase_orders',
+    'finished_product_inventory',
+    'finished_products',
+    'bulk_product_inventory',
+    'bulk_products',
+    'formulation_ingredients',
+    'formulations',
     'raw_material_inventory',
     'raw_materials',
     'material_categories',
     'customers',
-    'formulations',
   ];
 
   const moduleHandlers: Record<string, () => Promise<string>> = {

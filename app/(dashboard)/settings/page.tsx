@@ -18,64 +18,18 @@ type ResetOption = {
 
 const RESET_OPTIONS: ResetOption[] = [
   {
-    title: 'Sales & Ledger',
-    description: 'Deletes every sale, ledger transaction, and payment note tied to a customer.',
-    module: 'sales',
-    danger: true,
-  },
-  {
-    title: 'Production & Packaging',
-    description: 'Removes production runs, packaging events, quality tests, and batch tracking data.',
-    module: 'production',
-    danger: true,
-  },
-  {
-    title: 'Inventory Levels',
-    description: 'Resets raw, finished, and bulk inventory quantities to zero while keeping product records intact.',
-    module: 'inventory',
-  },
-  {
-    title: 'Formulations & Ingredients',
-    description: 'Deletes formulations and their ingredient links, detaching them from bulk products.',
-    module: 'formulations',
-    danger: true,
-  },
-  {
-    title: 'Raw Materials',
-    description: 'Clears raw material entries, inventories, usage logs, and related purchase line items.',
-    module: 'raw_materials',
-    danger: true,
-  },
-  {
-    title: 'Bulk Products',
-    description: 'Wipes bulk product definitions, inventory, and packaging prep history.',
-    module: 'bulk_products',
-    danger: true,
-  },
-  {
-    title: 'Finished Products',
-    description: 'Removes finished product catalog, inventory, sales items, and related packaging records.',
-    module: 'finished_products',
-    danger: true,
-  },
-  {
-    title: 'Purchases',
-    description: 'Deletes purchase orders, their line items, and cost history records.',
-    module: 'purchases',
-    danger: true,
-  },
-  {
-    title: 'Customers & Ledger',
-    description: 'Deletes every customer profile together with customer ledger entries.',
-    module: 'customers',
-    danger: true,
-  },
-  {
     title: 'Full System Reset',
-    description: 'Wipes all tables containing business data (customers, formulations, products, transactions).',
+    description:
+      'Deletes everything: customers, products, formulations, inventory, production, sales, purchases, and history. Use to start completely fresh.',
     module: 'full',
     danger: true,
     wide: true,
+  },
+  {
+    title: 'Zero All Inventory (Keep Records)',
+    description: 'Sets all inventory quantities (raw, bulk, finished) to zero while keeping catalog data intact.',
+    module: 'inventory',
+    danger: false,
   },
 ];
 
