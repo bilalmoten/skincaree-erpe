@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 
 interface ToastProps {
   message: string;
-  type?: 'success' | 'error' | 'info';
+  type?: 'success' | 'error' | 'info' | 'warning';
   onClose: () => void;
   duration?: number;
 }
@@ -22,6 +22,7 @@ export default function Toast({ message, type = 'info', onClose, duration = 5000
     success: 'bg-[hsl(var(--success))]',
     error: 'bg-destructive',
     info: 'bg-[hsl(var(--info))]',
+    warning: 'bg-[hsl(var(--warning))]',
   }[type];
 
   return (

@@ -187,7 +187,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (customer_id) {
-      // Get current balance - order by created_at and id for consistency
       const { data: ledgerEntries } = await supabase
         .from('customer_ledger')
         .select('balance, id')
@@ -197,14 +196,13 @@ export async function POST(request: NextRequest) {
         .limit(1);
 
       const currentBalance = ledgerEntries?.[0]?.balance || 0;
-      const newBalance = isCashPaid ? currentBalance : currentBalance + totalAmount;
-
-      const ledgerNotes = (notes || '').trim();
-      const notePayload = isCashPaid
-        ? ledgerNotes
-          ? `${ledgerNotes} (Cash sale)`
+      const saleBalance = currentBalance + totalAmount;
+      const baseNotes = (notes || '').trim();
+      const saleNote = isCashPaid
+        ? baseNotes
+          ? `${baseNotes} (Cash sale)`
           : 'Cash sale'
-        : ledgerNotes || null;
+        : baseNotes || null;
 
       await supabase
         .from('customer_ledger')
@@ -213,10 +211,28 @@ export async function POST(request: NextRequest) {
           sale_id: sale.id,
           transaction_type: 'sale',
           amount: totalAmount,
-          balance: newBalance,
+          balance: saleBalance,
           transaction_date: sale_date || new Date().toISOString().split('T')[0],
-          notes: notePayload,
+          notes: saleNote,
         });
+
+      if (isCashPaid) {
+        const paymentBalance = saleBalance - totalAmount;
+        const paymentNote = baseNotes
+          ? `${baseNotes} (Cash settlement)`
+          : 'Cash settlement';
+        await supabase
+          .from('customer_ledger')
+          .insert({
+            customer_id,
+            sale_id: sale.id,
+            transaction_type: 'payment',
+            amount: totalAmount,
+            balance: paymentBalance,
+            transaction_date: sale_date || new Date().toISOString().split('T')[0],
+            notes: paymentNote,
+          });
+      }
     }
 
     return NextResponse.json({ ...sale, sales_items: saleItems });

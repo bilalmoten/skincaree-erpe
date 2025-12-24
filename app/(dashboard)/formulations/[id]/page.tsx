@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { convertFromBatchUnit, convertToBatchUnit } from '@/lib/unitConversion';
 
 interface RawMaterial {
   id: string;
@@ -83,15 +84,21 @@ export default function EditFormulationPage() {
         produces_id: data.produces_id || '',
       });
 
+      const loadedBatchUnit = data.batch_unit || 'kg';
       setIngredients(
-        data.formulation_ingredients?.map((ing: any) => ({
-          type: ing.bulk_product_id ? 'bulk' : 'material',
-          raw_material_id: ing.raw_material_id || ing.bulk_product_id,
-          bulk_product_id: ing.bulk_product_id,
-          quantity: ing.quantity.toString(),
-          percentage: ((ing.quantity / batchSize) * 100).toFixed(2),
-          unit: ing.unit || 'kg',
-        })) || []
+        data.formulation_ingredients?.map((ing: any) => {
+          const ingredientUnit = ing.unit || 'kg';
+          const rawQuantity = parseFloat(ing.quantity) || 0;
+          const quantityInBatch = convertToBatchUnit(rawQuantity, ingredientUnit, loadedBatchUnit);
+          return {
+            type: ing.bulk_product_id ? 'bulk' : 'material',
+            raw_material_id: ing.raw_material_id || ing.bulk_product_id,
+            bulk_product_id: ing.bulk_product_id,
+            quantity: rawQuantity.toFixed(3),
+            percentage: batchSize > 0 ? ((quantityInBatch / batchSize) * 100).toFixed(2) : '0',
+            unit: ingredientUnit,
+          };
+        }) || []
       );
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -111,44 +118,77 @@ export default function EditFormulationPage() {
 
   const updateIngredient = (index: number, field: string, value: string) => {
     const newIngredients = [...ingredients];
-    const batchSize = parseFloat(formData.batch_size) || 1;
+    const batchSize = parseFloat(formData.batch_size) || 0;
+    const batchUnit = formData.batch_unit || 'kg';
+    const previousUnit = newIngredients[index]?.unit || 'kg';
     const updatedIng = { ...newIngredients[index], [field]: value } as EditIngredient;
-    
+
+    const adjustForUnitChange = (targetUnit: string, sourceUnit: string = previousUnit) => {
+      if (!targetUnit || !sourceUnit || targetUnit === sourceUnit) {
+        updatedIng.unit = targetUnit;
+        return;
+      }
+      const currentQuantity = parseFloat(updatedIng.quantity) || 0;
+      const quantityInBatch = convertToBatchUnit(currentQuantity, sourceUnit, batchUnit);
+      updatedIng.quantity = convertFromBatchUnit(quantityInBatch, batchUnit, targetUnit).toFixed(3);
+      updatedIng.percentage = batchSize > 0 ? ((quantityInBatch / batchSize) * 100).toFixed(2) : '0';
+      updatedIng.unit = targetUnit;
+    };
+
     if (field === 'type') {
       updatedIng.raw_material_id = '';
       updatedIng.bulk_product_id = undefined;
+      updatedIng.quantity = '';
+      updatedIng.percentage = '';
+      updatedIng.unit = 'kg';
     }
 
     if (field === 'raw_material_id') {
       if (updatedIng.type === 'material') {
         const material = rawMaterials.find(m => m.id === value);
-        if (material) updatedIng.unit = material.unit || 'kg';
+        if (material) {
+          adjustForUnitChange(material.unit || 'kg');
+        }
       } else {
         const bulk = bulkProducts.find(b => b.id === value);
         if (bulk) {
-          updatedIng.unit = bulk.unit || 'kg';
           updatedIng.bulk_product_id = value;
+          adjustForUnitChange(bulk.unit || 'kg');
         }
       }
     }
 
+    if (field === 'unit') {
+      adjustForUnitChange(value);
+      newIngredients[index] = updatedIng;
+      setIngredients(newIngredients);
+      return;
+    }
+
     if (field === 'percentage') {
       const percentage = parseFloat(value) || 0;
-      updatedIng.quantity = ((batchSize * percentage) / 100).toFixed(3);
+      const quantityInBatch = (batchSize * percentage) / 100;
+      const targetUnit = updatedIng.unit || 'kg';
+      updatedIng.quantity = convertFromBatchUnit(quantityInBatch, batchUnit, targetUnit).toFixed(3);
     } else if (field === 'quantity') {
       const quantity = parseFloat(value) || 0;
-      updatedIng.percentage = batchSize > 0 ? ((quantity / batchSize) * 100).toFixed(2) : '0';
+      const quantityInBatch = convertToBatchUnit(quantity, updatedIng.unit || 'kg', batchUnit);
+      updatedIng.percentage = batchSize > 0 ? ((quantityInBatch / batchSize) * 100).toFixed(2) : '0';
     }
-    
+
     newIngredients[index] = updatedIng;
     setIngredients(newIngredients);
   };
 
   const recalculateAll = () => {
-    const batchSize = parseFloat(formData.batch_size) || 1;
+    const batchSize = parseFloat(formData.batch_size) || 0;
+    const batchUnit = formData.batch_unit || 'kg';
+    if (batchSize === 0) return;
     const updated = ingredients.map(ing => {
       const percentage = parseFloat(ing.percentage) || 0;
-      return { ...ing, quantity: ((batchSize * percentage) / 100).toFixed(3) };
+      const quantityInBatch = (batchSize * percentage) / 100;
+      const quantityInUnit = convertFromBatchUnit(quantityInBatch, batchUnit, ing.unit || 'kg');
+      return { ...ing, quantity: quantityInUnit.toFixed(3) };
     });
     setIngredients(updated);
   };
@@ -158,6 +198,12 @@ export default function EditFormulationPage() {
       recalculateAll();
     }
   }, [formData.batch_size]);
+
+  useEffect(() => {
+    if (formulation) {
+      recalculateAll();
+    }
+  }, [formData.batch_unit]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

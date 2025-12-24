@@ -53,6 +53,13 @@ interface Formulation {
   name: string;
   batch_size?: number;
   batch_unit?: string;
+  produces_id?: string;
+  produces_type?: 'bulk' | 'finished';
+  formulation_ingredients?: Array<{
+    name?: string;
+    quantity: number;
+    unit?: string;
+  }>;
 }
 
 interface FinishedProduct {
@@ -549,6 +556,9 @@ function ProductionPageContent() {
                     batch_size: '',
                     production_date: new Date().toISOString().split('T')[0],
                     notes: '',
+                    overhead_cost: '',
+                    overhead_percentage: '',
+                    labor_cost: '',
                   });
                 }}
                 variant="secondary"
