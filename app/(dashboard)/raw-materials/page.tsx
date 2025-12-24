@@ -6,7 +6,8 @@ import { useToast } from '@/components/ToastProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import ResponsiveTable from '@/components/ResponsiveTable';
+import EmptyState from '@/components/EmptyState';
 import {
   Select,
   SelectContent,
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { Badge } from "@/components/ui/badge";
+import { FlaskConical } from 'lucide-react';
 
 interface RawMaterial {
   id: string;
@@ -187,11 +189,95 @@ export default function RawMaterialsPage() {
   };
 
   if (loading) {
-    return <div className="p-6">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
   }
 
+  const columns = [
+    {
+      key: 'name',
+      header: 'Name',
+      cell: (material: RawMaterial) => (
+        <span className="font-medium">{material.name}</span>
+      ),
+      mobileLabel: 'Name',
+    },
+    {
+      key: 'category',
+      header: 'Category',
+      cell: (material: RawMaterial) => (
+        <Badge variant="outline" className="font-normal capitalize">
+          {material.material_categories?.name || 'Uncategorized'}
+        </Badge>
+      ),
+      mobileLabel: 'Category',
+    },
+    {
+      key: 'unit',
+      header: 'Unit',
+      cell: (material: RawMaterial) => material.unit,
+      mobileLabel: 'Unit',
+      hideOnMobile: false,
+    },
+    {
+      key: 'supplier',
+      header: 'Supplier',
+      cell: (material: RawMaterial) => material.supplier || '-',
+      mobileLabel: 'Supplier',
+      hideOnMobile: false,
+    },
+    {
+      key: 'last_price',
+      header: 'Last Price',
+      cell: (material: RawMaterial) =>
+        material.last_price ? `PKR ${material.last_price.toFixed(2)}` : '-',
+      mobileLabel: 'Last Price',
+      hideOnMobile: false,
+    },
+    {
+      key: 'quantity',
+      header: 'Quantity',
+      cell: (material: RawMaterial) => (
+        <span className="font-medium">
+          {material.raw_material_inventory?.[0]?.quantity || 0} {material.unit}
+        </span>
+      ),
+      mobileLabel: 'Quantity',
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      cell: (material: RawMaterial) => (
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+          <Link
+            href={`/raw-materials/${material.id}`}
+            className="text-[hsl(var(--info))] hover:underline font-medium text-xs sm:text-sm"
+          >
+            Edit
+          </Link>
+          <Link
+            href={`/purchases?material=${material.id}`}
+            className="text-[hsl(var(--success))] hover:underline font-medium text-xs sm:text-sm"
+          >
+            Purchase
+          </Link>
+          <button
+            onClick={() => handleDelete(material.id)}
+            className="text-destructive hover:underline font-medium text-xs sm:text-sm text-left"
+          >
+            Delete
+          </button>
+        </div>
+      ),
+      mobileLabel: 'Actions',
+    },
+  ];
+
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div>
       <Card className="mb-6">
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
@@ -284,73 +370,34 @@ export default function RawMaterialsPage() {
         </Card>
       )}
 
-      <Card>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="hidden sm:table-cell">Unit</TableHead>
-                <TableHead className="hidden md:table-cell">Supplier</TableHead>
-                <TableHead className="hidden lg:table-cell">Last Price</TableHead>
-                <TableHead>Quantity</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredMaterials.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                    {searchQuery || categoryFilter !== 'all' ? 'No materials match your search.' : 'No raw materials found. Add your first material!'}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredMaterials.map((material) => (
-                  <TableRow key={material.id}>
-                    <TableCell className="font-medium">{material.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="font-normal capitalize">
-                        {material.material_categories?.name || 'Uncategorized'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">{material.unit}</TableCell>
-                    <TableCell className="hidden md:table-cell">{material.supplier || '-'}</TableCell>
-                    <TableCell className="hidden lg:table-cell">
-                      {material.last_price ? `PKR ${material.last_price.toFixed(2)}` : '-'}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {material.raw_material_inventory?.[0]?.quantity || 0} {material.unit}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                        <Link
-                          href={`/raw-materials/${material.id}`}
-                          className="text-[hsl(var(--info))] hover:underline font-medium text-xs sm:text-sm"
-                        >
-                          Edit
-                        </Link>
-                        <Link
-                          href={`/purchases?material=${material.id}`}
-                          className="text-[hsl(var(--success))] hover:underline font-medium text-xs sm:text-sm"
-                        >
-                          Purchase
-                        </Link>
-                        <button
-                          onClick={() => handleDelete(material.id)}
-                          className="text-destructive hover:underline font-medium text-xs sm:text-sm text-left"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
+      <ResponsiveTable
+        columns={columns}
+        data={filteredMaterials}
+        emptyMessage={
+          searchQuery || categoryFilter !== 'all'
+            ? 'No materials match your search.'
+            : 'No raw materials found. Add your first material!'
+        }
+        emptyState={
+          <EmptyState
+            icon={FlaskConical}
+            title="No Raw Materials"
+            description={
+              searchQuery || categoryFilter !== 'all'
+                ? 'No materials match your search criteria. Try adjusting your filters.'
+                : 'Get started by adding your first raw material to track inventory and costs.'
+            }
+            action={
+              searchQuery || categoryFilter !== 'all'
+                ? undefined
+                : {
+                    label: 'Add Raw Material',
+                    href: '/raw-materials/new',
+                  }
+            }
+          />
+        }
+      />
 
       <ConfirmDialog
         isOpen={deleteId !== null}

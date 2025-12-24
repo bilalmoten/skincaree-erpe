@@ -154,7 +154,7 @@ export default function SalesPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div>
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Sales</h1>
         <div className="flex gap-2 flex-wrap">

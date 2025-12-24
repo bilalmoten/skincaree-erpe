@@ -6,7 +6,9 @@ import { useToast } from '@/components/ToastProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import ResponsiveTable from '@/components/ResponsiveTable';
+import EmptyState from '@/components/EmptyState';
+import { Users } from 'lucide-react';
 
 interface Customer {
   id: string;
@@ -122,11 +124,70 @@ export default function CustomersPage() {
   };
 
   if (loading) {
-    return <div className="p-6">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
   }
 
+  const columns = [
+    {
+      key: 'name',
+      header: 'Name',
+      cell: (customer: Customer) => (
+        <span className="font-medium">{customer.name}</span>
+      ),
+      mobileLabel: 'Name',
+    },
+    {
+      key: 'email',
+      header: 'Email',
+      cell: (customer: Customer) => customer.email || '-',
+      mobileLabel: 'Email',
+      hideOnMobile: false,
+    },
+    {
+      key: 'phone',
+      header: 'Phone',
+      cell: (customer: Customer) => customer.phone || '-',
+      mobileLabel: 'Phone',
+      hideOnMobile: false,
+    },
+    {
+      key: 'address',
+      header: 'Address',
+      cell: (customer: Customer) => (
+        <span className="truncate max-w-xs block">{customer.address || '-'}</span>
+      ),
+      mobileLabel: 'Address',
+      hideOnMobile: false,
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      cell: (customer: Customer) => (
+        <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
+          <Link
+            href={`/customers/${customer.id}`}
+            className="text-primary hover:underline font-medium text-xs sm:text-sm"
+          >
+            Edit
+          </Link>
+          <Link
+            href={`/customers/${customer.id}/ledger`}
+            className="text-[hsl(var(--success))] hover:underline text-xs sm:text-sm"
+          >
+            Ledger
+          </Link>
+        </div>
+      ),
+      mobileLabel: 'Actions',
+    },
+  ];
+
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div>
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Customers</h1>
         <div className="flex flex-wrap gap-2">
@@ -203,55 +264,34 @@ export default function CustomersPage() {
         </Card>
       )}
 
-      <Card>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead className="hidden md:table-cell">Email</TableHead>
-                <TableHead className="hidden lg:table-cell">Phone</TableHead>
-                <TableHead className="hidden xl:table-cell">Address</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredCustomers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    {searchQuery ? 'No customers match your search.' : 'No customers found. Add your first customer!'}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredCustomers.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell className="text-xs sm:text-sm">{customer.name}</TableCell>
-                    <TableCell className="hidden md:table-cell text-xs sm:text-sm">{customer.email || '-'}</TableCell>
-                    <TableCell className="hidden lg:table-cell text-xs sm:text-sm">{customer.phone || '-'}</TableCell>
-                    <TableCell className="hidden xl:table-cell truncate max-w-xs text-xs sm:text-sm">{customer.address || '-'}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
-                        <Link
-                          href={`/customers/${customer.id}`}
-                          className="text-primary hover:underline font-medium text-xs sm:text-sm"
-                        >
-                          Edit
-                        </Link>
-                        <Link
-                          href={`/customers/${customer.id}/ledger`}
-                          className="text-[hsl(var(--success))] hover:underline text-xs sm:text-sm"
-                        >
-                          Ledger
-                        </Link>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
+      <ResponsiveTable
+        columns={columns}
+        data={filteredCustomers}
+        emptyMessage={
+          searchQuery
+            ? 'No customers match your search.'
+            : 'No customers found. Add your first customer!'
+        }
+        emptyState={
+          <EmptyState
+            icon={Users}
+            title="No Customers"
+            description={
+              searchQuery
+                ? 'No customers match your search criteria. Try adjusting your search.'
+                : 'Get started by adding your first customer to track sales and manage accounts.'
+            }
+            action={
+              searchQuery
+                ? undefined
+                : {
+                    label: 'Add Customer',
+                    href: '/customers/new',
+                  }
+            }
+          />
+        }
+      />
     </div>
   );
 }

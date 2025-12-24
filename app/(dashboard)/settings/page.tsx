@@ -8,6 +8,77 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
+type ResetOption = {
+  title: string;
+  description: string;
+  module: string;
+  danger?: boolean;
+  wide?: boolean;
+};
+
+const RESET_OPTIONS: ResetOption[] = [
+  {
+    title: 'Sales & Ledger',
+    description: 'Deletes every sale, ledger transaction, and payment note tied to a customer.',
+    module: 'sales',
+    danger: true,
+  },
+  {
+    title: 'Production & Packaging',
+    description: 'Removes production runs, packaging events, quality tests, and batch tracking data.',
+    module: 'production',
+    danger: true,
+  },
+  {
+    title: 'Inventory Levels',
+    description: 'Resets raw, finished, and bulk inventory quantities to zero while keeping product records intact.',
+    module: 'inventory',
+  },
+  {
+    title: 'Formulations & Ingredients',
+    description: 'Deletes formulations and their ingredient links, detaching them from bulk products.',
+    module: 'formulations',
+    danger: true,
+  },
+  {
+    title: 'Raw Materials',
+    description: 'Clears raw material entries, inventories, usage logs, and related purchase line items.',
+    module: 'raw_materials',
+    danger: true,
+  },
+  {
+    title: 'Bulk Products',
+    description: 'Wipes bulk product definitions, inventory, and packaging prep history.',
+    module: 'bulk_products',
+    danger: true,
+  },
+  {
+    title: 'Finished Products',
+    description: 'Removes finished product catalog, inventory, sales items, and related packaging records.',
+    module: 'finished_products',
+    danger: true,
+  },
+  {
+    title: 'Purchases',
+    description: 'Deletes purchase orders, their line items, and cost history records.',
+    module: 'purchases',
+    danger: true,
+  },
+  {
+    title: 'Customers & Ledger',
+    description: 'Deletes every customer profile together with customer ledger entries.',
+    module: 'customers',
+    danger: true,
+  },
+  {
+    title: 'Full System Reset',
+    description: 'Wipes all tables containing business data (customers, formulations, products, transactions).',
+    module: 'full',
+    danger: true,
+    wide: true,
+  },
+];
+
 export default function SettingsPage() {
   const { showToast } = useToast();
   const [loading, setLoading] = useState<string | null>(null);
@@ -103,39 +174,38 @@ export default function SettingsPage() {
     }
   };
 
-  const ResetCard = ({ 
-    title, 
-    description, 
-    module, 
-    danger = false 
-  }: { 
-    title: string; 
-    description: string; 
-    module: string;
-    danger?: boolean;
-  }) => (
-    <Card className="hover:shadow-md transition-all">
+  const ResetCard = ({ option }: { option: ResetOption }) => (
+    <Card
+      className={`hover:shadow-md transition-all ${option.wide ? 'lg:col-span-3' : ''}`}
+    >
       <CardHeader>
-        <CardTitle className={danger ? 'text-destructive' : ''}>
-          {title}
+        <CardTitle className={option.danger ? 'text-destructive' : ''}>
+          {option.title}
         </CardTitle>
         <CardDescription>
-          {description}
+          {option.description}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Button
-          onClick={() => setResetModule(module)}
-          variant={danger ? 'destructive' : 'secondary'}
+          onClick={() => {
+            setResetModule(option.module);
+            setConfirmText('');
+          }}
+          variant={option.danger ? 'destructive' : 'secondary'}
         >
-          Reset {title}
+          Reset {option.title}
         </Button>
       </CardContent>
     </Card>
   );
 
+  const activeResetOption = RESET_OPTIONS.find(
+    (option) => option.module === resetModule
+  );
+
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div>
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-foreground">System Settings</h1>
@@ -185,27 +255,9 @@ export default function SettingsPage() {
           <h2 className="text-xl font-bold text-foreground mb-4">Reset Options (Danger Zone)</h2>
         </div>
 
-        <ResetCard 
-          title="Sales & Ledger" 
-          description="Deletes all sales records, sales items, and customer ledger transactions. Customers and products remain intact."
-          module="sales"
-        />
-        <ResetCard 
-          title="Production & Packaging" 
-          description="Deletes all production runs, packaging runs, batch tracking, and material usage records."
-          module="production"
-        />
-        <ResetCard 
-          title="Inventory Levels" 
-          description="Sets all inventory quantities (raw materials, bulk, finished products) to zero without deleting the items."
-          module="inventory"
-        />
-        <ResetCard 
-          title="Full System Reset" 
-          description="CRITICAL: Deletes ALL data from ALL tables including customers, formulations, and products. This cannot be undone."
-          module="full"
-          danger={true}
-        />
+        {RESET_OPTIONS.map((option) => (
+          <ResetCard key={option.module} option={option} />
+        ))}
       </div>
 
       {/* Reset Confirmation Modal */}
@@ -213,9 +265,18 @@ export default function SettingsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Are you absolutely sure?</DialogTitle>
-            <DialogDescription>
-              This action is destructive and cannot be undone. To proceed, please type <span className="font-bold text-destructive">RESET</span> in the box below.
-            </DialogDescription>
+          <DialogDescription>
+            {activeResetOption ? (
+              <>
+                {activeResetOption.description}{' '}
+                This action is destructive and cannot be undone. To proceed, please type <span className="font-bold text-destructive">RESET</span> in the box below.
+              </>
+            ) : (
+              <>
+                This action is destructive and cannot be undone. To proceed, please type <span className="font-bold text-destructive">RESET</span> in the box below.
+              </>
+            )}
+          </DialogDescription>
           </DialogHeader>
           
           <Input

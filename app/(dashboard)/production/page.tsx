@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Package, PackageCheck } from 'lucide-react';
 
 interface ProductionRun {
   id: string;
@@ -359,7 +360,7 @@ function ProductionPageContent() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div>
       <Card className="mb-6">
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
@@ -416,8 +417,16 @@ function ProductionPageContent() {
                   </SelectContent>
                 </Select>
                 {selectedFormulation && (
-                  <p className="text-xs text-[hsl(var(--info))] mt-2 font-medium">
-                    Produces: {selectedFormulation.produces_type === 'bulk' ? '📦 Bulk' : '✨ Finished'} - {targetName}
+                  <p className="text-xs text-[hsl(var(--info))] mt-2 font-medium flex items-center gap-1">
+                    Produces: {selectedFormulation.produces_type === 'bulk' ? (
+                      <>
+                        <Package className="h-3 w-3 inline" /> Bulk
+                      </>
+                    ) : (
+                      <>
+                        <PackageCheck className="h-3 w-3 inline" /> Finished
+                      </>
+                    )} - {targetName}
                   </p>
                 )}
               </div>

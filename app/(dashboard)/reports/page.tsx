@@ -75,7 +75,7 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div>
       <h1 className="text-3xl font-bold mb-6 text-foreground">Reports</h1>
 
       <div className="flex gap-2 mb-6 border-b">
