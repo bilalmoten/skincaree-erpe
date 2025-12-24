@@ -2,6 +2,11 @@
 
 import { useState } from 'react';
 import { useToast } from '@/lib/hooks/useToast';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 export default function SettingsPage() {
   const { showToast } = useToast();
@@ -109,66 +114,75 @@ export default function SettingsPage() {
     module: string;
     danger?: boolean;
   }) => (
-    <div className="bg-white dark:bg-slate-800 border-2 border-purple-100 dark:border-purple-900/30 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all">
-      <h3 className={`text-lg font-bold mb-2 ${danger ? 'text-red-600' : 'text-purple-900 dark:text-purple-100'}`}>
-        {title}
-      </h3>
-      <p className="text-gray-600 dark:text-gray-400 text-sm mb-6">
-        {description}
-      </p>
-      <button
-        onClick={() => setResetModule(module)}
-        className={`px-4 py-2 rounded-xl font-medium transition-all ${
-          danger 
-            ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200' 
-            : 'bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-200'
-        }`}
-      >
-        Reset {title}
-      </button>
-    </div>
+    <Card className="hover:shadow-md transition-all">
+      <CardHeader>
+        <CardTitle className={danger ? 'text-destructive' : ''}>
+          {title}
+        </CardTitle>
+        <CardDescription>
+          {description}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button
+          onClick={() => setResetModule(module)}
+          variant={danger ? 'destructive' : 'secondary'}
+        >
+          Reset {title}
+        </Button>
+      </CardContent>
+    </Card>
   );
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">System Settings</h1>
-          <p className="text-gray-600 dark:text-gray-400">Manage your system data and administrative tasks</p>
+          <h1 className="text-3xl font-bold text-foreground">System Settings</h1>
+          <p className="text-muted-foreground">Manage your system data and administrative tasks</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-slate-800 border-2 border-purple-100 dark:border-purple-900/30 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all">
-          <h3 className="text-lg font-bold mb-2 text-purple-900 dark:text-purple-100">Full System Backup</h3>
-          <p className="text-gray-600 dark:text-gray-400 text-sm mb-6">
-            Export all system data (customers, products, sales, production, etc.) into a single JSON file.
-          </p>
-          <button
-            onClick={handleBackup}
-            disabled={loading === 'backup'}
-            className="w-full px-4 py-2 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 transition-all disabled:opacity-50"
-          >
-            {loading === 'backup' ? 'Generating...' : 'Download Backup'}
-          </button>
-        </div>
+        <Card className="hover:shadow-md transition-all">
+          <CardHeader>
+            <CardTitle>Full System Backup</CardTitle>
+            <CardDescription>
+              Export all system data (customers, products, sales, production, etc.) into a single JSON file.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              onClick={handleBackup}
+              disabled={loading === 'backup'}
+              className="w-full"
+            >
+              {loading === 'backup' ? 'Generating...' : 'Download Backup'}
+            </Button>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white dark:bg-slate-800 border-2 border-purple-100 dark:border-purple-900/30 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all">
-          <h3 className="text-lg font-bold mb-2 text-purple-900 dark:text-purple-100">Restore from Backup</h3>
-          <p className="text-gray-600 dark:text-gray-400 text-sm mb-6">
-            Import data from a previously exported backup file. This will overwrite all current system data.
-          </p>
-          <button
-            onClick={() => setShowRestoreModal(true)}
-            className="w-full px-4 py-2 bg-white text-purple-600 border border-purple-200 rounded-xl font-medium hover:bg-purple-50 transition-all"
-          >
-            Import Backup
-          </button>
-        </div>
+        <Card className="hover:shadow-md transition-all">
+          <CardHeader>
+            <CardTitle>Restore from Backup</CardTitle>
+            <CardDescription>
+              Import data from a previously exported backup file. This will overwrite all current system data.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              onClick={() => setShowRestoreModal(true)}
+              variant="outline"
+              className="w-full"
+            >
+              Import Backup
+            </Button>
+          </CardContent>
+        </Card>
 
         <div className="lg:col-span-3">
-          <hr className="my-4 border-gray-100 dark:border-slate-800" />
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Reset Options (Danger Zone)</h2>
+          <hr className="my-4 border-border" />
+          <h2 className="text-xl font-bold text-foreground mb-4">Reset Options (Danger Zone)</h2>
         </div>
 
         <ResetCard 
@@ -195,98 +209,103 @@ export default function SettingsPage() {
       </div>
 
       {/* Reset Confirmation Modal */}
-      {resetModule && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl border border-purple-100 dark:border-purple-900/30">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Are you absolutely sure?</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              This action is destructive and cannot be undone. To proceed, please type <span className="font-bold text-red-600">RESET</span> in the box below.
-            </p>
-            
-            <input
-              type="text"
-              value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value)}
-              placeholder="Type RESET here"
-              className="w-full px-4 py-3 rounded-xl border-2 border-purple-100 dark:border-purple-900/30 dark:bg-slate-900 focus:border-purple-500 outline-none mb-6"
-            />
+      <Dialog open={!!resetModule} onOpenChange={(open) => !open && (setResetModule(null), setConfirmText(''))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Are you absolutely sure?</DialogTitle>
+            <DialogDescription>
+              This action is destructive and cannot be undone. To proceed, please type <span className="font-bold text-destructive">RESET</span> in the box below.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Input
+            type="text"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder="Type RESET here"
+            className="mb-6"
+          />
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => handleReset(resetModule)}
-                disabled={loading !== null || confirmText !== 'RESET'}
-                className="flex-1 px-4 py-3 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                {loading === resetModule ? 'Resetting...' : 'Confirm Reset'}
-              </button>
-              <button
-                onClick={() => {
-                  setResetModule(null);
-                  setConfirmText('');
-                }}
-                className="flex-1 px-4 py-3 rounded-xl font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-all"
-              >
-                Cancel
-              </button>
-            </div>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => handleReset(resetModule!)}
+              disabled={loading !== null || confirmText !== 'RESET'}
+              variant="destructive"
+              className="flex-1"
+            >
+              {loading === resetModule ? 'Resetting...' : 'Confirm Reset'}
+            </Button>
+            <Button
+              onClick={() => {
+                setResetModule(null);
+                setConfirmText('');
+              }}
+              variant="outline"
+              className="flex-1"
+            >
+              Cancel
+            </Button>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Restore Confirmation Modal */}
-      {showRestoreModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl border border-purple-100 dark:border-purple-900/30">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Restore System Data</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              This will <span className="font-bold text-red-600">OVERWRITE</span> all existing data with the contents of the backup file. This cannot be undone.
-            </p>
+      <Dialog open={showRestoreModal} onOpenChange={(open) => !open && (setShowRestoreModal(false), setRestoreFile(null), setConfirmText(''))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Restore System Data</DialogTitle>
+            <DialogDescription>
+              This will <span className="font-bold text-destructive">OVERWRITE</span> all existing data with the contents of the backup file. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
 
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Select Backup File (.json)
-              </label>
-              <input
-                type="file"
-                accept=".json"
-                onChange={(e) => setRestoreFile(e.target.files?.[0] || null)}
-                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
-              />
-            </div>
-            
-            <p className="text-sm text-gray-500 dark:text-gray-500 mb-2">
-              Type <span className="font-bold text-red-600">RESTORE</span> to confirm
-            </p>
-            <input
+          <div className="mb-6">
+            <Label htmlFor="restore-file">Select Backup File (.json)</Label>
+            <Input
+              id="restore-file"
+              type="file"
+              accept=".json"
+              onChange={(e) => setRestoreFile(e.target.files?.[0] || null)}
+              className="mt-2"
+            />
+          </div>
+          
+          <div className="mb-6">
+            <Label htmlFor="restore-confirm">
+              Type <span className="font-bold text-destructive">RESTORE</span> to confirm
+            </Label>
+            <Input
+              id="restore-confirm"
               type="text"
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
               placeholder="Type RESTORE here"
-              className="w-full px-4 py-3 rounded-xl border-2 border-purple-100 dark:border-purple-900/30 dark:bg-slate-900 focus:border-purple-500 outline-none mb-6"
+              className="mt-2"
             />
-
-            <div className="flex gap-3">
-              <button
-                onClick={handleRestore}
-                disabled={loading === 'restore' || !restoreFile || confirmText !== 'RESTORE'}
-                className="flex-1 px-4 py-3 rounded-xl font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                {loading === 'restore' ? 'Restoring...' : 'Start Restore'}
-              </button>
-              <button
-                onClick={() => {
-                  setShowRestoreModal(false);
-                  setRestoreFile(null);
-                  setConfirmText('');
-                }}
-                className="flex-1 px-4 py-3 rounded-xl font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-all"
-              >
-                Cancel
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+
+          <div className="flex gap-3">
+            <Button
+              onClick={handleRestore}
+              disabled={loading === 'restore' || !restoreFile || confirmText !== 'RESTORE'}
+              className="flex-1"
+            >
+              {loading === 'restore' ? 'Restoring...' : 'Start Restore'}
+            </Button>
+            <Button
+              onClick={() => {
+                setShowRestoreModal(false);
+                setRestoreFile(null);
+                setConfirmText('');
+              }}
+              variant="outline"
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

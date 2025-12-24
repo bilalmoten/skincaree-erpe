@@ -48,11 +48,37 @@ export async function GET() {
       .order('production_date', { ascending: false })
       .limit(5);
 
+    // Valuation calculations
+    // 1. Raw Materials Valuation
+    const { data: rawMaterials } = await supabase.from('raw_materials').select('id, last_price');
+    const { data: rawInventory } = await supabase.from('raw_material_inventory').select('raw_material_id, quantity');
+    
+    const rawInvMap = new Map(rawInventory?.map(i => [i.raw_material_id, i.quantity]) || []);
+    const rawMaterialValuation = rawMaterials?.reduce((sum, rm) => {
+      const qty = rawInvMap.get(rm.id) || 0;
+      return sum + (Number(qty) * (Number(rm.last_price) || 0));
+    }, 0) || 0;
+
+    // 2. Finished Products Valuation (at Sale Price)
+    const { data: finishedProducts } = await supabase.from('finished_products').select('id, price');
+    const { data: finishedInventory } = await supabase.from('finished_product_inventory').select('finished_product_id, quantity');
+    
+    const finInvMap = new Map(finishedInventory?.map(i => [i.finished_product_id, i.quantity]) || []);
+    const finishedProductValuation = finishedProducts?.reduce((sum, fp) => {
+      const qty = finInvMap.get(fp.id) || 0;
+      return sum + (Number(qty) * (Number(fp.price) || 0));
+    }, 0) || 0;
+
     return NextResponse.json({
       recentRevenue,
       customerCount: customerCount || 0,
       lowStock: lowStock || [],
       recentProduction: recentProduction || [],
+      valuations: {
+        rawMaterials: rawMaterialValuation,
+        finishedProducts: finishedProductValuation,
+        totalValuation: rawMaterialValuation + finishedProductValuation
+      }
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

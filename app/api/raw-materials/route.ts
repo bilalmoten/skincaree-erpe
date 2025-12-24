@@ -5,10 +5,10 @@ export async function GET() {
   try {
     const supabase = createServerClient();
     
-    // First, get all raw materials
+    // First, get all raw materials with categories
     const { data: materials, error: materialsError } = await supabase
       .from('raw_materials')
-      .select('*')
+      .select('*, material_categories(name)')
       .order('created_at', { ascending: false });
 
     if (materialsError) throw materialsError;

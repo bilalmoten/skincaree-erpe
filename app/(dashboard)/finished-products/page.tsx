@@ -2,6 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useToast } from '@/components/ToastProvider';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface FinishedProduct {
   id: string;
@@ -9,23 +22,29 @@ interface FinishedProduct {
   sku: string | null;
   price: number;
   formulation_id: string | null;
+  category_id: string | null;
   notes: string | null;
   finished_product_inventory: Array<{ quantity: number }>;
   formulations: { name: string } | null;
+  material_categories?: { name: string } | null;
 }
 
 export default function FinishedProductsPage() {
+  const { showToast } = useToast();
   const [products, setProducts] = useState<FinishedProduct[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<FinishedProduct[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showImport, setShowImport] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
   }, []);
 
   const fetchProducts = async () => {
@@ -41,20 +60,35 @@ export default function FinishedProductsPage() {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/material-categories');
+      const data = await res.json();
+      setCategories(data.filter((c: any) => c.type === 'finished_good'));
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
   useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredProducts(products);
-    } else {
+    let filtered = products;
+
+    if (searchQuery.trim() !== '') {
       const query = searchQuery.toLowerCase();
-      const filtered = products.filter((product) =>
+      filtered = filtered.filter((product) =>
         product.name.toLowerCase().includes(query) ||
         product.sku?.toLowerCase().includes(query) ||
         product.notes?.toLowerCase().includes(query) ||
         product.formulations?.name.toLowerCase().includes(query)
       );
-      setFilteredProducts(filtered);
     }
-  }, [searchQuery, products]);
+
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter((p) => p.category_id === categoryFilter);
+    }
+
+    setFilteredProducts(filtered);
+  }, [searchQuery, categoryFilter, products]);
 
   const handleExport = async () => {
     setExporting(true);
@@ -68,7 +102,7 @@ export default function FinishedProductsPage() {
       a.click();
     } catch (error) {
       console.error('Error exporting:', error);
-      alert('Failed to export');
+      showToast('Failed to export', 'error');
     } finally {
       setExporting(false);
     }
@@ -104,16 +138,20 @@ export default function FinishedProductsPage() {
       const result = await res.json();
       
       if (result.success) {
-        alert(`Successfully imported ${result.imported} products${result.errors ? `\nErrors: ${result.errors.join(', ')}` : ''}`);
+        let msg = `Successfully imported ${result.imported} products`;
+        if (result.errors && result.errors.length > 0) {
+          msg += `. Some rows had errors: ${result.errors.join(', ').slice(0, 100)}...`;
+        }
+        showToast(msg, result.errors ? 'warning' : 'success');
         setShowImport(false);
         setImportFile(null);
         fetchProducts();
       } else {
-        alert(`Error: ${result.error || 'Import failed'}`);
+        showToast(`Error: ${result.error || 'Import failed'}`, 'error');
       }
     } catch (error) {
       console.error('Error importing:', error);
-      alert('Failed to import');
+      showToast('Failed to import', 'error');
     }
   };
 
@@ -124,123 +162,146 @@ export default function FinishedProductsPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-purple-700 dark:text-purple-300">Finished Products</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Finished Products</h1>
         <div className="flex flex-wrap gap-2">
-          <button
+          <Button
             onClick={handleDownloadTemplate}
-            className="px-3 sm:px-4 py-2 bg-purple-100 dark:bg-purple-800 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-700 transition-all text-sm font-medium"
+            variant="secondary"
+            size="sm"
           >
             Download Template
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setShowImport(!showImport)}
-            className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all text-sm font-medium shadow-md hover:shadow-lg"
+            size="sm"
           >
             Import Excel
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleExport}
             disabled={exporting}
-            className="px-3 sm:px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all text-sm font-medium shadow-md hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
+            size="sm"
+            className="bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90"
           >
             {exporting ? 'Exporting...' : 'Export Excel'}
-          </button>
-          <Link
-            href="/finished-products/new"
-            className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all text-sm font-medium shadow-md hover:shadow-lg"
-          >
-            Add New
-          </Link>
+          </Button>
+          <Button asChild size="sm">
+            <Link href="/finished-products/new">Add New</Link>
+          </Button>
         </div>
       </div>
 
-      <div className="mb-4">
-        <input
+      <div className="flex flex-col sm:flex-row gap-4 mb-4">
+        <Input
           type="text"
           placeholder="Search products by name, SKU, or notes..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full max-w-md border-2 border-purple-200 dark:border-purple-700 rounded-lg px-4 py-2 text-sm dark:bg-purple-800 dark:text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none"
+          className="w-full max-w-md"
         />
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-full sm:w-[200px]">
+            <SelectValue placeholder="All Categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {categories.map((cat) => (
+              <SelectItem key={cat.id} value={cat.id}>
+                {cat.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {showImport && (
-        <div className="mb-6 p-4 bg-white dark:bg-purple-900 rounded-xl shadow-lg border-2 border-purple-200 dark:border-purple-800">
-          <h2 className="font-semibold text-purple-700 dark:text-purple-300 mb-2">Import from Excel</h2>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <input
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-              className="flex-1 border-2 border-purple-200 dark:border-purple-700 rounded-lg px-2 py-1 dark:bg-purple-800 dark:text-white"
-            />
-            <button
-              onClick={handleImport}
-              disabled={importing || !importFile}
-              className="px-4 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm"
-            >
-              {importing ? 'Importing...' : 'Import'}
-            </button>
-            <button
-              onClick={() => {
-                setShowImport(false);
-                setImportFile(null);
-              }}
-              className="px-4 py-1 bg-purple-100 dark:bg-purple-800 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-700 transition-all text-sm font-medium"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Import from Excel</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                className="flex-1"
+              />
+              <Button
+                onClick={handleImport}
+                disabled={importing || !importFile}
+                size="sm"
+              >
+                {importing ? 'Importing...' : 'Import'}
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowImport(false);
+                  setImportFile(null);
+                }}
+                variant="secondary"
+                size="sm"
+              >
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      <div className="overflow-x-auto">
-        <div className="bg-white dark:bg-purple-900 rounded-xl shadow-lg border-2 border-purple-200 dark:border-purple-800 overflow-hidden">
-          <table className="min-w-full">
-            <thead>
-              <tr className="bg-purple-50 dark:bg-purple-800">
-                <th className="px-4 py-2 text-left text-sm font-medium text-purple-700 dark:text-purple-300 border-b-2 border-purple-200 dark:border-purple-700">Name</th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-purple-700 dark:text-purple-300 border-b-2 border-purple-200 dark:border-purple-700">SKU</th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-purple-700 dark:text-purple-300 border-b-2 border-purple-200 dark:border-purple-700">Price</th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-purple-700 dark:text-purple-300 border-b-2 border-purple-200 dark:border-purple-700">Formulation</th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-purple-700 dark:text-purple-300 border-b-2 border-purple-200 dark:border-purple-700">Quantity</th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-purple-700 dark:text-purple-300 border-b-2 border-purple-200 dark:border-purple-700">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
+      <Card>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead className="hidden md:table-cell">SKU</TableHead>
+                <TableHead>Price</TableHead>
+                <TableHead className="hidden lg:table-cell">Formulation</TableHead>
+                <TableHead>Quantity</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filteredProducts.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-purple-600 dark:text-purple-400">
-                    No finished products found. Add your first product!
-                  </td>
-                </tr>
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    {searchQuery || categoryFilter !== 'all' ? 'No products match your search.' : 'No finished products found. Add your first product!'}
+                  </TableCell>
+                </TableRow>
               ) : (
                 filteredProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-purple-50 dark:hover:bg-purple-800/50 transition-colors">
-                  <td className="px-4 py-2 border-b border-purple-200 dark:border-purple-700 text-gray-900 dark:text-white">{product.name}</td>
-                  <td className="px-4 py-2 border-b border-purple-200 dark:border-purple-700 text-gray-900 dark:text-white">{product.sku || '-'}</td>
-                  <td className="px-4 py-2 border-b border-purple-200 dark:border-purple-700 text-gray-900 dark:text-white">PKR {product.price.toFixed(2)}</td>
-                  <td className="px-4 py-2 border-b border-purple-200 dark:border-purple-700 text-gray-900 dark:text-white">
-                    {product.formulations?.name || '-'}
-                  </td>
-                  <td className="px-4 py-2 border-b border-purple-200 dark:border-purple-700 text-gray-900 dark:text-white">
-                    {product.finished_product_inventory?.[0]?.quantity || 0}
-                  </td>
-                  <td className="px-4 py-2 border-b border-purple-200 dark:border-purple-700">
-                    <Link
-                      href={`/finished-products/${product.id}`}
-                      className="text-purple-600 dark:text-purple-400 hover:underline font-medium"
-                    >
-                      Edit
-                    </Link>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-      </div>
+                  <TableRow key={product.id}>
+                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="font-normal capitalize">
+                        {product.material_categories?.name || 'Uncategorized'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">{product.sku || '-'}</TableCell>
+                    <TableCell>PKR {product.price.toFixed(2)}</TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {product.formulations?.name || '-'}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {product.finished_product_inventory?.[0]?.quantity || 0}
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/finished-products/${product.id}`}
+                        className="text-primary hover:underline font-medium text-xs sm:text-sm"
+                      >
+                        Edit
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
     </div>
   );
 }

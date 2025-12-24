@@ -41,16 +41,16 @@ export async function POST(
 
     const { amount, transaction_date, notes, sale_id } = body;
 
-    // Get current balance
-    const { data: lastEntry } = await supabase
+    // Get current balance - order by created_at and id for consistency
+    const { data: lastEntries } = await supabase
       .from('customer_ledger')
-      .select('balance')
+      .select('balance, id')
       .eq('customer_id', customerId)
       .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+      .order('id', { ascending: false })
+      .limit(1);
 
-    const currentBalance = lastEntry?.balance || 0;
+    const currentBalance = lastEntries?.[0]?.balance || 0;
     const newBalance = currentBalance - parseFloat(amount); // Payment reduces balance
 
     const { data, error } = await supabase

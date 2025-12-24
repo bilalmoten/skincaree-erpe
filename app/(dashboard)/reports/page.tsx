@@ -2,8 +2,14 @@
 
 import { useState } from 'react';
 import { format, subDays } from 'date-fns';
+import { useToast } from '@/components/ToastProvider';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export default function ReportsPage() {
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'sales' | 'inventory' | 'production'>('sales');
   const [dateRange, setDateRange] = useState({
     start_date: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
@@ -70,107 +76,103 @@ export default function ReportsPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6 dark:text-white">Reports</h1>
+      <h1 className="text-3xl font-bold mb-6 text-foreground">Reports</h1>
 
-      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-700">
-        <button
+      <div className="flex gap-2 mb-6 border-b">
+        <Button
           onClick={() => handleTabChange('sales')}
-          className={`px-4 py-2 transition-colors ${
-            activeTab === 'sales' 
-              ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 font-semibold' 
-              : 'text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
-          }`}
+          variant={activeTab === 'sales' ? 'default' : 'ghost'}
+          className={activeTab === 'sales' ? 'border-b-2' : ''}
         >
           Sales
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={() => handleTabChange('inventory')}
-          className={`px-4 py-2 transition-colors ${
-            activeTab === 'inventory' 
-              ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 font-semibold' 
-              : 'text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
-          }`}
+          variant={activeTab === 'inventory' ? 'default' : 'ghost'}
+          className={activeTab === 'inventory' ? 'border-b-2' : ''}
         >
           Inventory
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={() => handleTabChange('production')}
-          className={`px-4 py-2 transition-colors ${
-            activeTab === 'production' 
-              ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 font-semibold' 
-              : 'text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
-          }`}
+          variant={activeTab === 'production' ? 'default' : 'ghost'}
+          className={activeTab === 'production' ? 'border-b-2' : ''}
         >
           Production
-        </button>
+        </Button>
       </div>
 
       {activeTab === 'sales' && (
         <div>
           <div className="flex gap-4 mb-4">
-            <input
+            <Input
               type="date"
               value={dateRange.start_date}
               onChange={(e) => setDateRange({ ...dateRange, start_date: e.target.value })}
-              className="border rounded px-3 py-2"
             />
-            <input
+            <Input
               type="date"
               value={dateRange.end_date}
               onChange={(e) => setDateRange({ ...dateRange, end_date: e.target.value })}
-              className="border rounded px-3 py-2"
             />
-            <button
+            <Button
               onClick={fetchSalesReport}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
               Generate Report
-            </button>
+            </Button>
           </div>
 
           {loading ? (
-            <div className="text-gray-500 dark:text-gray-400">Loading...</div>
+            <div className="text-muted-foreground">Loading...</div>
           ) : salesData ? (
             <div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm">
-                  <h3 className="text-sm text-gray-600 dark:text-gray-400 mb-2">Total Sales</h3>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white">{salesData.summary.totalSales}</p>
-                </div>
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm">
-                  <h3 className="text-sm text-gray-600 dark:text-gray-400 mb-2">Total Revenue</h3>
-                  <p className="text-3xl font-bold text-green-600 dark:text-green-400">PKR {salesData.summary.totalRevenue.toFixed(2)}</p>
-                </div>
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm">
-                  <h3 className="text-sm text-gray-600 dark:text-gray-400 mb-2">Total Items Sold</h3>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white">{salesData.summary.totalItems}</p>
-                </div>
+                <Card>
+                  <CardContent className="p-6">
+                    <h3 className="text-sm text-muted-foreground mb-2">Total Sales</h3>
+                    <p className="text-3xl font-bold text-foreground">{salesData.summary.totalSales}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <h3 className="text-sm text-muted-foreground mb-2">Total Revenue</h3>
+                    <p className="text-3xl font-bold text-[hsl(var(--success))]">PKR {salesData.summary.totalRevenue.toFixed(2)}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <h3 className="text-sm text-muted-foreground mb-2">Total Items Sold</h3>
+                    <p className="text-3xl font-bold text-foreground">{salesData.summary.totalItems}</p>
+                  </CardContent>
+                </Card>
               </div>
 
               {salesData.byProduct && salesData.byProduct.length > 0 && (
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6 shadow-sm">
-                  <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Sales by Product</h3>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full">
-                      <thead>
-                        <tr className="border-b border-gray-200 dark:border-gray-700">
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Product</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Quantity</th>
-                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">Revenue</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle>Sales by Product</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Product</TableHead>
+                          <TableHead className="text-right">Quantity</TableHead>
+                          <TableHead className="text-right">Revenue</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {salesData.byProduct.map((product: any, idx: number) => (
-                          <tr key={idx} className="border-b border-gray-100 dark:border-gray-700 hover:bg-[var(--surface-muted)] dark:hover:bg-gray-700">
-                            <td className="py-3 px-4 text-gray-900 dark:text-white">{product.name}</td>
-                            <td className="text-right py-3 px-4 text-gray-900 dark:text-white">{product.quantity}</td>
-                            <td className="text-right py-3 px-4 font-semibold text-gray-900 dark:text-white">PKR {product.revenue.toFixed(2)}</td>
-                          </tr>
+                          <TableRow key={idx}>
+                            <TableCell>{product.name}</TableCell>
+                            <TableCell className="text-right">{product.quantity}</TableCell>
+                            <TableCell className="text-right font-semibold">PKR {product.revenue.toFixed(2)}</TableCell>
+                          </TableRow>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
               )}
 
               {salesData.byCustomer && salesData.byCustomer.length > 0 && (
@@ -223,7 +225,7 @@ export default function ReportsPage() {
                     doc.save('inventory-report.pdf');
                   } catch (error) {
                     console.error('Error generating PDF:', error);
-                    alert('Failed to generate PDF');
+                    showToast('Failed to generate PDF', 'error');
                   }
                 }}
                 className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
@@ -290,7 +292,7 @@ export default function ReportsPage() {
                     doc.save('production-report.pdf');
                   } catch (error) {
                     console.error('Error generating PDF:', error);
-                    alert('Failed to generate PDF');
+                    showToast('Failed to generate PDF', 'error');
                   }
                 }}
                 className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"

@@ -1,7 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useToast } from '@/components/ToastProvider';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Category {
   id: string;
@@ -11,10 +18,15 @@ interface Category {
 }
 
 export default function CategoriesPage() {
+  const { showToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     type: 'ingredient' as Category['type'],
@@ -61,33 +73,41 @@ export default function CategoriesPage() {
         setEditingCategory(null);
         setFormData({ name: '', type: 'ingredient', parent_id: '' });
         fetchCategories();
+        showToast(editingCategory ? 'Category updated successfully' : 'Category created successfully', 'success');
       } else {
         const error = await res.json();
-        alert(`Error: ${error.error || 'Failed to save category'}`);
+        showToast(`Error: ${error.error || 'Failed to save category'}`, 'error');
       }
     } catch (error) {
-      alert('Failed to save category');
+      showToast('Failed to save category', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this category?')) return;
+    setDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
 
     try {
-      const res = await fetch(`/api/material-categories/${id}`, {
+      const res = await fetch(`/api/material-categories/${deleteId}`, {
         method: 'DELETE',
       });
 
       if (res.ok) {
         fetchCategories();
+        showToast('Category deleted successfully', 'success');
       } else {
         const error = await res.json();
-        alert(`Error: ${error.error || 'Failed to delete category'}`);
+        showToast(`Error: ${error.error || 'Failed to delete category'}`, 'error');
       }
     } catch (error) {
-      alert('Failed to delete category');
+      showToast('Failed to delete category', 'error');
+    } finally {
+      setDeleteId(null);
     }
   };
 
@@ -101,6 +121,56 @@ export default function CategoriesPage() {
     setShowForm(true);
   };
 
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await fetch('/api/excel/templates/categories');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'categories_template.xlsx';
+      a.click();
+    } catch (error) {
+      console.error('Error downloading template:', error);
+      showToast('Failed to download template', 'error');
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFile) return;
+
+    setImporting(true);
+    const formData = new FormData();
+    formData.append('file', importFile);
+
+    try {
+      const res = await fetch('/api/material-categories/excel/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await res.json();
+      
+      if (result.success) {
+        let msg = `Successfully imported ${result.imported} categories`;
+        if (result.errors && result.errors.length > 0) {
+          msg += `. Errors: ${result.errors.join(', ').slice(0, 100)}...`;
+        }
+        showToast(msg, result.errors ? 'warning' : 'success');
+        setShowImport(false);
+        setImportFile(null);
+        fetchCategories();
+      } else {
+        showToast(`Error: ${result.error || 'Import failed'}`, 'error');
+      }
+    } catch (error) {
+      console.error('Error importing:', error);
+      showToast('Failed to import', 'error');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const getCategoriesByType = (type: Category['type']) => {
     return categories.filter((c) => c.type === type);
   };
@@ -111,123 +181,204 @@ export default function CategoriesPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Material Categories</h1>
-        <button
-          onClick={() => {
-            setShowForm(true);
-            setEditingCategory(null);
-            setFormData({ name: '', type: 'ingredient', parent_id: '' });
-          }}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          + Add Category
-        </button>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Material Categories</h1>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={handleDownloadTemplate}
+            variant="secondary"
+            size="sm"
+          >
+            Download Template
+          </Button>
+          <Button
+            onClick={() => setShowImport(!showImport)}
+            size="sm"
+            variant="outline"
+          >
+            Import Excel
+          </Button>
+          <Button
+            onClick={() => {
+              setShowForm(true);
+              setEditingCategory(null);
+              setFormData({ name: '', type: 'ingredient', parent_id: '' });
+            }}
+            size="sm"
+            className="bg-[hsl(var(--info))] hover:bg-[hsl(var(--info))]/90"
+          >
+            + Add Category
+          </Button>
+        </div>
       </div>
 
-      {showForm && (
-        <div className="mb-6 bg-white border rounded p-4">
-          <h2 className="text-xl font-semibold mb-4">
-            {editingCategory ? 'Edit Category' : 'New Category'}
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Name *</label>
-              <input
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full border rounded px-3 py-2"
+      {showImport && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Import from Excel</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                className="flex-1"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Type *</label>
-              <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value as Category['type'] })}
-                className="w-full border rounded px-3 py-2"
-                required
+              <Button
+                onClick={handleImport}
+                disabled={importing || !importFile}
+                size="sm"
               >
-                <option value="ingredient">Ingredient</option>
-                <option value="packaging">Packaging</option>
-                <option value="bulk_product">Bulk Product</option>
-                <option value="finished_good">Finished Good</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Parent Category (Optional)</label>
-              <select
-                value={formData.parent_id}
-                onChange={(e) => setFormData({ ...formData, parent_id: e.target.value })}
-                className="w-full border rounded px-3 py-2"
-              >
-                <option value="">None</option>
-                {categories
-                  .filter((c) => c.type === formData.type && c.id !== editingCategory?.id)
-                  .map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-              </select>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
-              >
-                {loading ? 'Saving...' : 'Save'}
-              </button>
-              <button
-                type="button"
+                {importing ? 'Importing...' : 'Import'}
+              </Button>
+              <Button
                 onClick={() => {
-                  setShowForm(false);
-                  setEditingCategory(null);
-                  setFormData({ name: '', type: 'ingredient', parent_id: '' });
+                  setShowImport(false);
+                  setImportFile(null);
                 }}
-                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                variant="secondary"
+                size="sm"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
-          </form>
-        </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {showForm && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>{editingCategory ? 'Edit Category' : 'New Category'}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="name">Name *</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="type">Type *</Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value) => setFormData({ ...formData, type: value as Category['type'] })}
+                >
+                  <SelectTrigger id="type" className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ingredient">Ingredient</SelectItem>
+                    <SelectItem value="packaging">Packaging</SelectItem>
+                    <SelectItem value="bulk_product">Bulk Product</SelectItem>
+                    <SelectItem value="finished_good">Finished Good</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="parent">Parent Category (Optional)</Label>
+                <Select
+                  value={formData.parent_id}
+                  onValueChange={(value) => setFormData({ ...formData, parent_id: value })}
+                >
+                  <SelectTrigger id="parent" className="mt-1">
+                    <SelectValue placeholder="None" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {categories
+                      .filter((c) => c.type === formData.type && c.id !== editingCategory?.id)
+                      .map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="bg-[hsl(var(--info))] hover:bg-[hsl(var(--info))]/90"
+                >
+                  {loading ? 'Saving...' : 'Save'}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditingCategory(null);
+                    setFormData({ name: '', type: 'ingredient', parent_id: '' });
+                  }}
+                  variant="secondary"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {(['ingredient', 'packaging', 'bulk_product', 'finished_good'] as const).map((type) => (
-          <div key={type} className="bg-white border rounded p-4">
-            <h2 className="text-xl font-semibold mb-4 capitalize">{type.replace('_', ' ')}</h2>
-            {getCategoriesByType(type).length === 0 ? (
-              <p className="text-gray-500 text-sm">No categories yet</p>
-            ) : (
-              <ul className="space-y-2">
-                {getCategoriesByType(type).map((category) => (
-                  <li key={category.id} className="flex justify-between items-center p-2 hover:bg-[var(--surface-muted)] rounded">
-                    <span>{category.name}</span>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(category)}
-                        className="text-blue-600 hover:underline text-sm"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(category.id)}
-                        className="text-red-600 hover:underline text-sm"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          <Card key={type}>
+            <CardHeader>
+              <CardTitle className="capitalize">{type.replace('_', ' ')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {getCategoriesByType(type).length === 0 ? (
+                <p className="text-muted-foreground text-sm">No categories yet</p>
+              ) : (
+                <ul className="space-y-2">
+                  {getCategoriesByType(type).map((category) => (
+                    <li key={category.id} className="flex justify-between items-center p-2 hover:bg-muted rounded">
+                      <span>{category.name}</span>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => handleEdit(category)}
+                          variant="ghost"
+                          size="sm"
+                          className="text-[hsl(var(--info))]"
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          onClick={() => handleDelete(category.id)}
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive"
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
         ))}
       </div>
+
+      <ConfirmDialog
+        isOpen={deleteId !== null}
+        title="Delete Category"
+        message="Are you sure you want to delete this category? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteId(null)}
+        type="danger"
+      />
     </div>
   );
 }

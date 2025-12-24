@@ -2,6 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { useToast } from '@/components/ToastProvider';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
 
 interface RawMaterial {
   id: string;
@@ -14,6 +20,7 @@ export default function PurchaseRawMaterialPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
+  const { showToast } = useToast();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -55,115 +62,112 @@ export default function PurchaseRawMaterialPage() {
       });
 
       if (res.ok) {
-        alert('Purchase recorded successfully!');
+        showToast('Purchase recorded successfully!', 'success');
         router.push(`/raw-materials/${id}`);
       } else {
         const error = await res.json();
-        alert(`Error: ${error.error}`);
+        showToast(`Error: ${error.error}`, 'error');
       }
     } catch (error: any) {
-      alert(`Error: ${error.message}`);
+      showToast(`Error: ${error.message}`, 'error');
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
-    return <div className="p-6 flex items-center justify-center min-h-screen">
-      <div className="text-gray-500">Loading...</div>
-    </div>;
-  }
-
-  if (!material) {
-    return <div className="p-6">Material not found</div>;
-  }
+  if (loading) return <div className="p-6 text-center text-muted-foreground">Loading...</div>;
+  if (!material) return <div className="p-6 text-center">Material not found</div>;
 
   const currentQty = material.raw_material_inventory?.[0]?.quantity || 0;
   const newQty = currentQty + (parseFloat(formData.quantity) || 0);
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Record Purchase</h1>
-        <p className="text-gray-600">
-          <span className="font-medium">{material.name}</span> ({material.unit})
-        </p>
-        <p className="text-sm text-gray-500 mt-1">
-          Current Inventory: {currentQty} {material.unit}
-        </p>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Quantity Purchased *</label>
-            <input
-              type="number"
-              step="0.001"
-              required
-              value={formData.quantity}
-              onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-            />
-            {formData.quantity && (
-              <p className="text-sm text-gray-600 mt-1">
-                New Inventory: {newQty} {material.unit}
-              </p>
-            )}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Record Purchase</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-1">
+            <p className="text-lg font-semibold">{material.name}</p>
+            <p className="text-sm text-muted-foreground">Unit: {material.unit}</p>
+            <p className="text-sm font-medium mt-2">
+              Current Inventory: {currentQty} {material.unit}
+            </p>
           </div>
+        </CardContent>
+      </Card>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Purchase Price (PKR) *</label>
-            <input
-              type="number"
-              step="0.01"
-              required
-              value={formData.price}
-              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-            />
-            <p className="text-xs text-gray-500 mt-1">This will update the "Last Price" field</p>
-          </div>
+      <Card>
+        <CardContent className="pt-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="quantity">Quantity Purchased *</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  step="0.001"
+                  required
+                  value={formData.quantity}
+                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                  placeholder={`Number of ${material.unit}`}
+                  className="mt-2"
+                />
+              </div>
+              <div>
+                <Label htmlFor="price">Total Price (Optional)</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  placeholder="PKR"
+                  className="mt-2"
+                />
+              </div>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Purchase Date *</label>
-            <input
-              type="date"
-              required
-              value={formData.purchase_date}
-              onChange={(e) => setFormData({ ...formData, purchase_date: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-            />
-          </div>
+            <div>
+              <Label htmlFor="purchase_date">Purchase Date *</Label>
+              <Input
+                id="purchase_date"
+                type="date"
+                required
+                value={formData.purchase_date}
+                onChange={(e) => setFormData({ ...formData, purchase_date: e.target.value })}
+                className="mt-2"
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-            <textarea
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-              rows={3}
-            />
-          </div>
+            <div>
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                className="mt-2"
+                rows={3}
+              />
+            </div>
 
-          <div className="flex gap-3 pt-4 border-t border-gray-200">
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 font-medium transition-colors shadow-sm"
-            >
-              {saving ? 'Recording...' : 'Record Purchase'}
-            </button>
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
+            <div className="bg-muted p-4 rounded-lg">
+              <p className="text-sm text-muted-foreground">Projected New Balance:</p>
+              <p className="text-lg font-bold">{newQty.toFixed(3)} {material.unit}</p>
+            </div>
+
+            <div className="flex gap-2">
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Recording...' : 'Record Purchase'}
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => router.back()}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

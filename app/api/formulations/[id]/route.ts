@@ -18,7 +18,13 @@ export async function GET(
           quantity,
           unit,
           raw_material_id,
+          bulk_product_id,
           raw_materials (
+            id,
+            name,
+            unit
+          ),
+          bulk_products (
             id,
             name,
             unit
@@ -44,7 +50,7 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const { name, description, batch_size, ingredients } = body;
+    const { name, description, batch_size, batch_unit, produces_type, produces_id, ingredients } = body;
 
     // Update formulation
     const { error: formulationError } = await supabase
@@ -53,6 +59,9 @@ export async function PUT(
         name,
         description: description || null,
         batch_size: parseFloat(batch_size) || 1,
+        batch_unit: batch_unit || 'kg',
+        produces_type: produces_type || null,
+        produces_id: produces_id || null,
       })
       .eq('id', id);
 
@@ -68,7 +77,8 @@ export async function PUT(
     if (ingredients && ingredients.length > 0) {
       const ingredientData = ingredients.map((ing: any) => ({
         formulation_id: id,
-        raw_material_id: ing.raw_material_id,
+        raw_material_id: ing.type === 'material' ? ing.raw_material_id : (ing.raw_material_id && !ing.bulk_product_id ? ing.raw_material_id : null),
+        bulk_product_id: ing.type === 'bulk' ? (ing.bulk_product_id || ing.raw_material_id) : null,
         quantity: parseFloat(ing.quantity),
         unit: ing.unit,
       }));

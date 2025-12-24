@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from '@/components/ThemeProvider';
 import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: '📊' },
@@ -49,26 +50,26 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="min-h-screen bg-[var(--background)] transition-colors">
+    <div className="min-h-screen bg-background transition-colors">
       {/* Mobile menu overlay */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
       {/* Navigation */}
-      <nav className="bg-white/90 backdrop-blur-sm dark:bg-slate-800 shadow-sm border-b border-[var(--border)] sticky top-0 z-50">
+      <nav className="bg-background/90 backdrop-blur-sm shadow-sm border-b border-border sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo and Desktop Menu */}
             <div className="flex items-center flex-1">
               <Link href="/dashboard" className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center shadow-sm">
-                  <span className="text-white font-bold text-lg">S</span>
+                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-sm">
+                  <span className="text-primary-foreground font-bold text-lg">S</span>
                 </div>
-                <span className="text-xl font-bold text-gray-900 dark:text-white">Skincare ERP</span>
+                <span className="text-xl font-bold text-foreground">Skincare ERP</span>
               </Link>
               
               {/* Desktop Navigation */}
@@ -79,8 +80,8 @@ export default function DashboardLayout({
                     href={item.href}
                     className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                       isActive(item.href)
-                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 shadow-sm'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-900 dark:hover:text-white'
+                        ? 'bg-secondary text-secondary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                     }`}
                   >
                     <span className="mr-2 text-base">{item.icon}</span>
@@ -93,9 +94,10 @@ export default function DashboardLayout({
             {/* Right side - Theme toggle and Mobile menu button */}
             <div className="flex items-center gap-2">
               {mounted && (
-                <button
+                <Button
                   onClick={toggleTheme}
-                  className="p-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                  variant="ghost"
+                  size="icon"
                   aria-label="Toggle theme"
                 >
                   {theme === 'dark' ? (
@@ -107,13 +109,15 @@ export default function DashboardLayout({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                     </svg>
                   )}
-                </button>
+                </Button>
               )}
               
               {/* Mobile menu button */}
-              <button
+              <Button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                variant="ghost"
+                size="icon"
+                className="lg:hidden"
                 aria-label="Toggle menu"
               >
                 {mobileMenuOpen ? (
@@ -125,7 +129,7 @@ export default function DashboardLayout({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                   </svg>
                 )}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -133,27 +137,28 @@ export default function DashboardLayout({
 
       {/* Mobile Sidebar Menu */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-800 shadow-xl transform transition-transform duration-300 ease-in-out lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-card shadow-xl transform transition-transform duration-300 ease-in-out lg:hidden ${
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <div className="flex flex-col h-full">
           {/* Mobile menu header */}
-          <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-slate-700">
+          <div className="flex items-center justify-between h-16 px-4 border-b border-border">
             <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-purple-700 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">S</span>
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                <span className="text-primary-foreground font-bold text-sm">S</span>
               </div>
-              <span className="text-lg font-bold text-gray-900 dark:text-white">Skincare ERP</span>
+              <span className="text-lg font-bold text-card-foreground">Skincare ERP</span>
             </Link>
-            <button
+            <Button
               onClick={() => setMobileMenuOpen(false)}
-              className="p-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700"
+              variant="ghost"
+              size="icon"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
-            </button>
+            </Button>
           </div>
 
           {/* Mobile menu items */}
@@ -165,8 +170,8 @@ export default function DashboardLayout({
                 onClick={() => setMobileMenuOpen(false)}
                 className={`flex items-center px-4 py-3 mx-2 rounded-xl text-sm font-medium transition-all ${
                   isActive(item.href)
-                    ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 shadow-sm'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'
+                    ? 'bg-secondary text-secondary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                 }`}
               >
                 <span className="mr-3 text-lg">{item.icon}</span>

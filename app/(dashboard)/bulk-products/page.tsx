@@ -3,6 +3,13 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { useToast } from '@/components/ToastProvider';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 interface BulkProduct {
   id: string;
@@ -28,11 +35,17 @@ interface Formulation {
 }
 
 export default function BulkProductsPage() {
+  const { showToast } = useToast();
   const [bulkProducts, setBulkProducts] = useState<BulkProduct[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<BulkProduct[]>([]);
   const [formulations, setFormulations] = useState<Formulation[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     formulation_id: '',
@@ -50,12 +63,27 @@ export default function BulkProductsPage() {
       const res = await fetch('/api/bulk-products');
       const data = await res.json();
       setBulkProducts(data);
+      setFilteredProducts(data);
     } catch (error) {
       console.error('Error fetching bulk products:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredProducts(bulkProducts);
+    } else {
+      const query = searchQuery.toLowerCase();
+      const filtered = bulkProducts.filter((product) =>
+        product.name.toLowerCase().includes(query) ||
+        product.notes?.toLowerCase().includes(query) ||
+        product.formulations?.name.toLowerCase().includes(query)
+      );
+      setFilteredProducts(filtered);
+    }
+  }, [searchQuery, bulkProducts]);
 
   const fetchFormulations = async () => {
     try {
@@ -81,17 +109,67 @@ export default function BulkProductsPage() {
       const result = await res.json();
 
       if (res.ok) {
-        alert('Bulk product created successfully!');
+        showToast('Bulk product created successfully!', 'success');
         setShowForm(false);
         setFormData({ name: '', formulation_id: '', unit: 'kg', notes: '' });
         fetchBulkProducts();
       } else {
-        alert(`Error: ${result.error || 'Failed to create bulk product'}`);
+        showToast(`Error: ${result.error || 'Failed to create bulk product'}`, 'error');
       }
     } catch (error) {
-      alert('Failed to create bulk product');
+      showToast('Failed to create bulk product', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await fetch('/api/excel/templates/bulk-products');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'bulk_products_template.xlsx';
+      a.click();
+    } catch (error) {
+      console.error('Error downloading template:', error);
+      showToast('Failed to download template', 'error');
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFile) return;
+
+    setImporting(true);
+    const formData = new FormData();
+    formData.append('file', importFile);
+
+    try {
+      const res = await fetch('/api/bulk-products/excel/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await res.json();
+      
+      if (result.success) {
+        let msg = `Successfully imported ${result.imported} bulk products`;
+        if (result.errors && result.errors.length > 0) {
+          msg += `. Errors: ${result.errors.join(', ').slice(0, 100)}...`;
+        }
+        showToast(msg, result.errors ? 'warning' : 'success');
+        setShowImport(false);
+        setImportFile(null);
+        fetchBulkProducts();
+      } else {
+        showToast(`Error: ${result.error || 'Import failed'}`, 'error');
+      }
+    } catch (error) {
+      console.error('Error importing:', error);
+      showToast('Failed to import', 'error');
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -100,126 +178,206 @@ export default function BulkProductsPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto p-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-purple-700 dark:text-purple-300">Bulk Products</h1>
-        <button
-          onClick={() => setShowForm(true)}
-          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all shadow-md hover:shadow-lg font-medium text-sm sm:text-base"
-        >
-          + New Bulk Product
-        </button>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Bulk Products</h1>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={handleDownloadTemplate}
+            variant="secondary"
+            size="sm"
+          >
+            Download Template
+          </Button>
+          <Button
+            onClick={() => setShowImport(!showImport)}
+            size="sm"
+            variant="outline"
+          >
+            Import Excel
+          </Button>
+          <Button
+            onClick={() => setShowForm(true)}
+            size="sm"
+          >
+            + New Bulk Product
+          </Button>
+        </div>
       </div>
 
+      {showImport && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Import from Excel</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                className="flex-1"
+              />
+              <Button
+                onClick={handleImport}
+                disabled={importing || !importFile}
+                size="sm"
+              >
+                {importing ? 'Importing...' : 'Import'}
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowImport(false);
+                  setImportFile(null);
+                }}
+                variant="secondary"
+                size="sm"
+              >
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {showForm && (
-        <div className="mb-6 bg-white dark:bg-purple-900 rounded-xl shadow-lg border-2 border-purple-200 dark:border-purple-800 p-4 sm:p-6">
-          <h2 className="text-lg sm:text-xl font-semibold text-purple-700 dark:text-purple-300 mb-4">New Bulk Product</h2>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>New Bulk Product</CardTitle>
+          </CardHeader>
+          <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-purple-700 dark:text-purple-300 mb-1">Name *</label>
-                <input
+                <Label htmlFor="name">Name *</Label>
+                <Input
+                  id="name"
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full border-2 border-purple-200 dark:border-purple-700 rounded-lg px-3 py-2 dark:bg-purple-800 dark:text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
                   placeholder="e.g., Moisturizer Base"
+                  className="mt-2"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-purple-700 dark:text-purple-300 mb-1">Formulation (Optional)</label>
-                <select
+                <Label htmlFor="formulation">Formulation (Optional)</Label>
+                <Select
                   value={formData.formulation_id}
-                  onChange={(e) => setFormData({ ...formData, formulation_id: e.target.value })}
-                  className="w-full border-2 border-purple-200 dark:border-purple-700 rounded-lg px-3 py-2 dark:bg-purple-800 dark:text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                  onValueChange={(value) => setFormData({ ...formData, formulation_id: value })}
                 >
-                  <option value="">Select Formulation</option>
-                  {formulations.map((formulation) => (
-                    <option key={formulation.id} value={formulation.id}>
-                      {formulation.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="formulation" className="mt-2">
+                    <SelectValue placeholder="Select Formulation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {formulations.map((formulation) => (
+                      <SelectItem key={formulation.id} value={formulation.id}>
+                        {formulation.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-purple-700 dark:text-purple-300 mb-1">Unit *</label>
-                <select
+                <Label htmlFor="unit">Unit *</Label>
+                <Select
                   required
                   value={formData.unit}
-                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                  className="w-full border-2 border-purple-200 dark:border-purple-700 rounded-lg px-3 py-2 dark:bg-purple-800 dark:text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                  onValueChange={(value) => setFormData({ ...formData, unit: value })}
                 >
-                  <option value="kg">kg</option>
-                  <option value="g">g</option>
-                  <option value="L">L</option>
-                  <option value="mL">mL</option>
-                </select>
+                  <SelectTrigger id="unit" className="mt-2">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="kg">kg</SelectItem>
+                    <SelectItem value="g">g</SelectItem>
+                    <SelectItem value="L">L</SelectItem>
+                    <SelectItem value="mL">mL</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-purple-700 dark:text-purple-300 mb-1">Notes</label>
-              <textarea
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                className="w-full border-2 border-purple-200 dark:border-purple-700 rounded-lg px-3 py-2 dark:bg-purple-800 dark:text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                className="mt-2"
                 rows={3}
               />
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t-2 border-purple-200 dark:border-purple-800">
-              <button
+            <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
+              <Button
                 type="submit"
                 disabled={saving}
-                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 transition-all font-medium shadow-md hover:shadow-lg"
+                className="flex-1"
               >
                 {saving ? 'Saving...' : 'Save Bulk Product'}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => {
                   setShowForm(false);
                   setFormData({ name: '', formulation_id: '', unit: 'kg', notes: '' });
                 }}
-                className="flex-1 sm:flex-initial px-4 py-2 bg-purple-100 dark:bg-purple-800 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-700 transition-all font-medium"
+                variant="secondary"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
+      <div className="mb-4">
+        <Input
+          type="text"
+          placeholder="Search bulk products by name, formulation, or notes..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full max-w-md"
+        />
+      </div>
+
       <div className="space-y-4">
-        {bulkProducts.length === 0 ? (
-          <div className="text-center py-12 bg-white dark:bg-purple-900 rounded-xl shadow-lg border-2 border-purple-200 dark:border-purple-800">
-            <p className="text-purple-600 dark:text-purple-400">No bulk products found. Create your first bulk product!</p>
-          </div>
+        {filteredProducts.length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-12">
+              <p className="text-muted-foreground">
+                {searchQuery ? 'No bulk products match your search.' : 'No bulk products found. Create your first bulk product!'}
+              </p>
+            </CardContent>
+          </Card>
         ) : (
-          bulkProducts.map((product) => (
-            <div key={product.id} className="bg-white dark:bg-purple-900 border-2 border-purple-200 dark:border-purple-800 rounded-xl shadow-lg p-4 sm:p-6 hover:shadow-xl hover:border-purple-300 transition-all">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-300">
-                    {product.name}
-                  </h3>
-                  {product.formulations && (
-                    <p className="text-sm text-purple-600 dark:text-purple-400">
-                      Formulation: {product.formulations.name}
+          filteredProducts.map((product) => (
+            <Card key={product.id} className="hover:shadow-xl transition-all">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">
+                      {product.name}
+                    </h3>
+                    {product.formulations && (
+                      <p className="text-sm text-muted-foreground">
+                        Formulation: {product.formulations.name}
+                      </p>
+                    )}
+                    <p className="text-lg font-bold text-foreground mt-1">
+                      Inventory: {product.bulk_product_inventory?.[0]?.quantity || 0} {product.unit}
                     </p>
-                  )}
-                  <p className="text-lg font-bold text-purple-700 dark:text-purple-300 mt-1">
-                    Inventory: {product.bulk_product_inventory?.[0]?.quantity || 0} {product.unit}
-                  </p>
-                  {product.notes && (
-                    <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">{product.notes}</p>
-                  )}
+                    {product.notes && (
+                      <p className="text-sm text-muted-foreground mt-1">{product.notes}</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           ))
         )}
       </div>

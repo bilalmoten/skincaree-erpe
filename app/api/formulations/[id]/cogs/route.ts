@@ -32,11 +32,59 @@ export async function GET(
     // Calculate total material cost
     let totalCost = 0;
     if (formulation.formulation_ingredients) {
-      formulation.formulation_ingredients.forEach((ing: any) => {
-        const price = ing.raw_materials?.last_price || 0;
-        const quantity = ing.quantity || 0;
+      for (const ing of formulation.formulation_ingredients) {
+        let price = 0;
+        let quantity = ing.quantity || 0;
+        let baseUnit = 'kg';
+
+        if (ing.raw_material_id) {
+          price = ing.raw_materials?.last_price || 0;
+          baseUnit = ing.raw_materials?.unit || 'kg';
+        } else if (ing.bulk_product_id) {
+          // Try to get cost from bulk product's formulation COGS
+          // This is a simple non-recursive check
+          const { data: bulk } = await supabase
+            .from('bulk_products')
+            .select('formulation_id, unit')
+            .eq('id', ing.bulk_product_id)
+            .single();
+          
+          baseUnit = bulk?.unit || 'kg';
+
+          if (bulk?.formulation_id) {
+            // Get cost of that formulation
+            const { data: bulkForm } = await supabase
+              .from('formulations')
+              .select('id')
+              .eq('id', bulk.formulation_id)
+              .single();
+            
+            if (bulkForm) {
+              const res = await fetch(`${request.nextUrl.origin}/api/formulations/${bulkForm.id}/cogs`);
+              if (res.ok) {
+                const cogs = await res.json();
+                price = cogs.costPerUnit || 0;
+              }
+            }
+          }
+        }
+        
+        // Handle unit conversion if necessary
+        const materialUnit = baseUnit.toLowerCase();
+        const ingredientUnit = ing.unit?.toLowerCase();
+
+        if (materialUnit === 'kg' && ingredientUnit === 'g') {
+          quantity = quantity / 1000;
+        } else if (materialUnit === 'g' && ingredientUnit === 'kg') {
+          quantity = quantity * 1000;
+        } else if (materialUnit === 'l' && ingredientUnit === 'ml') {
+          quantity = quantity / 1000;
+        } else if (materialUnit === 'ml' && ingredientUnit === 'l') {
+          quantity = quantity * 1000;
+        }
+
         totalCost += price * quantity;
-      });
+      }
     }
 
     // Cost per batch unit

@@ -19,9 +19,9 @@ export default function Toast({ message, type = 'info', onClose, duration = 5000
   }, [duration, onClose]);
 
   const bgColor = {
-    success: 'bg-green-500',
-    error: 'bg-red-500',
-    info: 'bg-blue-500',
+    success: 'bg-[hsl(var(--success))]',
+    error: 'bg-destructive',
+    info: 'bg-[hsl(var(--info))]',
   }[type];
 
   return (
@@ -30,7 +30,7 @@ export default function Toast({ message, type = 'info', onClose, duration = 5000
         <span>{message}</span>
         <button
           onClick={onClose}
-          className="ml-auto text-white hover:text-gray-200 font-bold"
+          className="ml-auto text-white/90 hover:text-white font-bold"
         >
           ×
         </button>

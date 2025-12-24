@@ -3,6 +3,14 @@
 import { useEffect, useState, Suspense } from 'react';
 import { format } from 'date-fns';
 import { useSearchParams } from 'next/navigation';
+import { useToast } from '@/components/ToastProvider';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 
 interface ProductionRun {
   id: string;
@@ -55,6 +63,7 @@ interface FinishedProduct {
 
 function ProductionPageContent() {
   const searchParams = useSearchParams();
+  const { showToast } = useToast();
   const [runs, setRuns] = useState<ProductionRun[]>([]);
   const [filteredRuns, setFilteredRuns] = useState<ProductionRun[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,22 +72,94 @@ function ProductionPageContent() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [formulations, setFormulations] = useState<Formulation[]>([]);
+  const [bulkProducts, setBulkProducts] = useState<any[]>([]);
   const [finishedProducts, setFinishedProducts] = useState<FinishedProduct[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     formulation_id: '',
-    finished_product_id: '',
+    finished_product_id: '', // Backward compatibility
     batch_size: '',
     production_date: new Date().toISOString().split('T')[0],
     notes: '',
+    overhead_cost: '',
+    overhead_percentage: '',
+    labor_cost: '',
   });
   const [creating, setCreating] = useState(false);
+  const [selectedFormulationCOGS, setSelectedFormulationCOGS] = useState<any>(null);
 
   useEffect(() => {
     fetchRuns();
-    fetchFormulations();
-    fetchFinishedProducts();
+    fetchInitialData();
   }, []);
+
+  const fetchInitialData = async () => {
+    try {
+      const [formRes, bulkRes, finishedRes] = await Promise.all([
+        fetch('/api/formulations'),
+        fetch('/api/bulk-products'),
+        fetch('/api/finished-products'),
+      ]);
+      setFormulations(await formRes.json());
+      setBulkProducts(await bulkRes.json());
+      setFinishedProducts(await finishedRes.json());
+    } catch (error) {
+      console.error('Error fetching initial data:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (formData.formulation_id) {
+      fetchFormulationCOGS(formData.formulation_id);
+    } else {
+      setSelectedFormulationCOGS(null);
+    }
+  }, [formData.formulation_id]);
+
+  const fetchFormulationCOGS = async (id: string) => {
+    try {
+      const res = await fetch(`/api/formulations/${id}/cogs`);
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedFormulationCOGS(data);
+      }
+    } catch (error) {
+      console.error('Error fetching formulation COGS:', error);
+    }
+  };
+
+  const selectedFormulation = formData.formulation_id
+    ? formulations.find(f => f.id === formData.formulation_id)
+    : null;
+
+  const targetName = selectedFormulation?.produces_type === 'bulk' 
+    ? bulkProducts.find(b => b.id === selectedFormulation.produces_id)?.name || 'Bulk Product'
+    : finishedProducts.find(f => f.id === selectedFormulation?.produces_id)?.name || 'Finished Product';
+
+  const handleOverheadChange = (type: 'amount' | 'percentage', value: string) => {
+    const baseCost = selectedFormulationCOGS?.totalCost || 0;
+    const parsedValue = parseFloat(value);
+    const nextFormData = {
+      ...formData,
+      [type === 'amount' ? 'overhead_cost' : 'overhead_percentage']: value,
+    };
+
+    if (value === '') {
+      if (type === 'amount') {
+        nextFormData.overhead_percentage = '';
+      } else {
+        nextFormData.overhead_cost = '';
+      }
+    } else if (baseCost > 0 && !Number.isNaN(parsedValue)) {
+      if (type === 'amount') {
+        nextFormData.overhead_percentage = ((parsedValue / baseCost) * 100).toFixed(2);
+      } else {
+        nextFormData.overhead_cost = ((parsedValue / 100) * baseCost).toFixed(2);
+      }
+    }
+
+    setFormData(nextFormData);
+  };
 
   // Handle query parameter for pre-filling form
   useEffect(() => {
@@ -189,7 +270,7 @@ function ProductionPageContent() {
       const result = await res.json();
 
       if (res.ok) {
-        alert('Production run created successfully!');
+        showToast('Production run created successfully!', 'success');
         setShowForm(false);
         setFormData({
           formulation_id: '',
@@ -197,16 +278,19 @@ function ProductionPageContent() {
           batch_size: '',
           production_date: new Date().toISOString().split('T')[0],
           notes: '',
+          overhead_cost: '',
+          overhead_percentage: '',
+          labor_cost: '',
         });
         fetchRuns();
       } else {
         const errorMsg = result.details 
           ? `${result.error}\n${JSON.stringify(result.details, null, 2)}`
           : result.error || 'Failed to create production run';
-        alert(`Error: ${errorMsg}`);
+        showToast(`Error: ${errorMsg}`, 'error');
       }
     } catch (error) {
-      alert('Failed to create production run');
+      showToast('Failed to create production run', 'error');
     } finally {
       setCreating(false);
     }
@@ -242,16 +326,16 @@ function ProductionPageContent() {
       const result = await res.json();
       
       if (result.success) {
-        alert(`Successfully imported ${result.imported} production runs${result.errors ? `\nErrors: ${result.errors.join(', ')}` : ''}`);
+        showToast(`Successfully imported ${result.imported} production runs${result.errors ? `. Errors: ${result.errors.join(', ')}` : ''}`, 'success');
         setShowImport(false);
         setImportFile(null);
         fetchRuns();
       } else {
-        alert(`Error: ${result.error || 'Import failed'}`);
+        showToast(`Error: ${result.error || 'Import failed'}`, 'error');
       }
     } catch (error) {
       console.error('Error importing:', error);
-      alert('Failed to import');
+      showToast('Failed to import', 'error');
     } finally {
       setImporting(false);
     }
@@ -261,111 +345,94 @@ function ProductionPageContent() {
     ? finishedProducts.filter((p) => p.formulation_id === formData.formulation_id)
     : [];
 
-  const selectedFormulation = formData.formulation_id
-    ? formulations.find(f => f.id === formData.formulation_id)
-    : null;
-
   if (loading) {
     return <div className="p-6 flex items-center justify-center min-h-screen">
-      <div className="text-gray-500">Loading...</div>
+      <div className="text-muted-foreground">Loading...</div>
     </div>;
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 p-6 mb-6">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Production Runs</h1>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={handleDownloadTemplate}
-              className="px-3 sm:px-4 py-2 bg-purple-100 dark:bg-purple-800 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-700 font-medium transition-all text-sm"
-            >
-              Download Template
-            </button>
-            <button
-              onClick={() => setShowImport(!showImport)}
-              className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-all text-sm shadow-md hover:shadow-lg"
-            >
-              Import Excel
-            </button>
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition-all text-sm shadow-md hover:shadow-lg"
-            >
-              New Production Run
-            </button>
+    <div className="max-w-7xl mx-auto p-6">
+      <Card className="mb-6">
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <CardTitle className="text-3xl">Production Runs</CardTitle>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={handleDownloadTemplate}
+                variant="secondary"
+                size="sm"
+              >
+                Download Template
+              </Button>
+              <Button
+                onClick={() => setShowImport(!showImport)}
+                size="sm"
+              >
+                Import Excel
+              </Button>
+              <Button
+                onClick={() => setShowForm(!showForm)}
+                size="sm"
+              >
+                New Production Run
+              </Button>
+            </div>
           </div>
-        </div>
-      </div>
+        </CardHeader>
+      </Card>
 
       {showForm && (
-        <div className="mb-6 bg-white dark:bg-purple-900 rounded-xl shadow-lg border-2 border-purple-200 dark:border-purple-800 p-4 sm:p-6">
-          <h2 className="text-lg sm:text-xl font-semibold text-purple-700 dark:text-purple-300 mb-4">Create Production Run</h2>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Create Production Run</CardTitle>
+          </CardHeader>
+          <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-purple-700 dark:text-purple-300 mb-2">Formulation *</label>
-                <select
+                <Label htmlFor="formulation">Formulation *</Label>
+                <Select
                   required
                   value={formData.formulation_id}
-                  onChange={(e) => setFormData({ ...formData, formulation_id: e.target.value, finished_product_id: '' })}
-                  className="w-full border-2 border-purple-200 dark:border-purple-700 rounded-lg px-4 py-2 dark:bg-purple-800 dark:text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition"
+                  onValueChange={(value) => setFormData({ ...formData, formulation_id: value, finished_product_id: '' })}
                 >
-                  <option value="">Select Formulation</option>
-                  {formulations.map((formulation) => (
-                    <option key={formulation.id} value={formulation.id}>
-                      {formulation.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="formulation" className="mt-2">
+                    <SelectValue placeholder="Select Formulation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {formulations.map((formulation) => (
+                      <SelectItem key={formulation.id} value={formulation.id}>
+                        {formulation.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedFormulation && (
+                  <p className="text-xs text-[hsl(var(--info))] mt-2 font-medium">
+                    Produces: {selectedFormulation.produces_type === 'bulk' ? '📦 Bulk' : '✨ Finished'} - {targetName}
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-purple-700 dark:text-purple-300 mb-2">Finished Product (Optional)</label>
-                <select
-                  value={formData.finished_product_id}
-                  onChange={(e) => setFormData({ ...formData, finished_product_id: e.target.value })}
-                  className="w-full border-2 border-purple-200 dark:border-purple-700 rounded-lg px-4 py-2 dark:bg-purple-800 dark:text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition"
-                  disabled={!formData.formulation_id || availableProducts.length === 0}
-                >
-                  <option value="">
-                    {!formData.formulation_id 
-                      ? 'Select formulation first' 
-                      : availableProducts.length === 0 
-                        ? 'No products linked to this formulation'
-                        : 'Auto-update all linked products'}
-                  </option>
-                  {availableProducts.map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
-                  {formData.finished_product_id 
-                    ? 'Selected product will be updated'
-                    : 'All products linked to formulation will be updated'}
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-purple-700 dark:text-purple-300 mb-2">
+                <Label htmlFor="batch-size">
                   Batch Size * 
                   {selectedFormulation?.batch_unit ? ` (${selectedFormulation.batch_unit})` : ''}
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
+                </Label>
+                <div className="flex items-center gap-2 mt-2">
+                  <Input
+                    id="batch-size"
                     type="number"
                     step="0.001"
                     required
                     value={formData.batch_size}
                     onChange={(e) => setFormData({ ...formData, batch_size: e.target.value })}
-                    className="flex-1 border-2 border-purple-200 dark:border-purple-700 rounded-lg px-4 py-2 dark:bg-purple-800 dark:text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition"
                     placeholder="e.g., 100"
+                    className="flex-1"
                   />
                   {selectedFormulation?.batch_unit && (
-                    <span className="text-purple-700 dark:text-purple-300 font-medium px-3 py-2 bg-purple-50 dark:bg-purple-800 border-2 border-purple-200 dark:border-purple-700 rounded-lg">
+                    <span className="text-foreground font-medium px-3 py-2 bg-muted border rounded-lg">
                       {selectedFormulation.batch_unit}
                     </span>
                   )}
@@ -373,32 +440,92 @@ function ProductionPageContent() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-purple-700 dark:text-purple-300 mb-2">Production Date *</label>
-                <input
+                <Label htmlFor="production-date">Production Date *</Label>
+                <Input
+                  id="production-date"
                   type="date"
                   required
                   value={formData.production_date}
                   onChange={(e) => setFormData({ ...formData, production_date: e.target.value })}
-                  className="w-full border-2 border-purple-200 dark:border-purple-700 rounded-lg px-4 py-2 dark:bg-purple-800 dark:text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition"
+                  className="mt-2"
                 />
+              </div>
+
+              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t">
+                <div>
+                  <Label htmlFor="overhead-amount">Overhead Cost (PKR)</Label>
+                  <Input
+                    id="overhead-amount"
+                    type="number"
+                    step="0.01"
+                    value={formData.overhead_cost}
+                    onChange={(e) => handleOverheadChange('amount', e.target.value)}
+                    placeholder="Fixed amount"
+                    className="mt-2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="overhead-percentage">Overhead (%)</Label>
+                  <Input
+                    id="overhead-percentage"
+                    type="number"
+                    step="0.01"
+                    value={formData.overhead_percentage}
+                    onChange={(e) => handleOverheadChange('percentage', e.target.value)}
+                    placeholder="Percentage of materials"
+                    className="mt-2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="labor-cost">Labor Cost (PKR)</Label>
+                  <Input
+                    id="labor-cost"
+                    type="number"
+                    step="0.01"
+                    value={formData.labor_cost}
+                    onChange={(e) => setFormData({ ...formData, labor_cost: e.target.value })}
+                    placeholder="e.g., 500"
+                    className="mt-2"
+                  />
+                </div>
               </div>
             </div>
 
+            {selectedFormulation?.formulation_ingredients && (
+              <div className="space-y-3 pt-4 border-t">
+                <Label>Required Ingredients (Calculated):</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {selectedFormulation.formulation_ingredients.map((ing: any, idx: number) => {
+                    const batchSize = parseFloat(formData.batch_size) || 0;
+                    const baseBatchSize = selectedFormulation.batch_size || 1;
+                    const multiplier = batchSize / baseBatchSize;
+                    return (
+                      <div key={idx} className="flex justify-between items-center p-2 rounded-lg bg-muted/50 text-sm">
+                        <span>{ing.name || 'Unknown'}</span>
+                        <span className="font-mono">{(ing.quantity * multiplier).toFixed(3)} {ing.unit}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div>
-              <label className="block text-sm font-medium text-purple-700 dark:text-purple-300 mb-2">Notes</label>
-              <textarea
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                className="w-full border-2 border-purple-200 dark:border-purple-700 rounded-lg px-4 py-2 dark:bg-purple-800 dark:text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition"
+                className="mt-2"
                 rows={2}
               />
             </div>
 
-            <div className="flex gap-3 pt-4 border-t-2 border-purple-200 dark:border-purple-800">
-              <button
+            <div className="flex gap-3 pt-4 border-t">
+              <Button
                 type="submit"
                 disabled={creating}
-                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 font-medium transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                className="flex items-center gap-2"
               >
                 {creating ? (
                   <>
@@ -411,8 +538,8 @@ function ProductionPageContent() {
                 ) : (
                   'Create Run'
                 )}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => {
                   setShowForm(false);
@@ -424,150 +551,160 @@ function ProductionPageContent() {
                     notes: '',
                   });
                 }}
-                className="px-6 py-2 bg-purple-100 dark:bg-purple-800 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-700 font-medium transition-all"
+                variant="secondary"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {showImport && (
-        <div className="mb-6 bg-white dark:bg-purple-900 rounded-xl shadow-lg border-2 border-purple-200 dark:border-purple-800 p-4 sm:p-6">
-          <h2 className="font-semibold text-purple-700 dark:text-purple-300 mb-3">Import from Excel</h2>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <input
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-              className="flex-1 border-2 border-purple-200 dark:border-purple-700 rounded-lg px-3 py-2 text-sm dark:bg-purple-800 dark:text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none"
-            />
-            <button
-              onClick={handleImport}
-              disabled={importing || !importFile}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium transition-all text-sm shadow-sm"
-            >
-              {importing ? 'Importing...' : 'Import'}
-            </button>
-            <button
-              onClick={() => {
-                setShowImport(false);
-                setImportFile(null);
-              }}
-              className="px-4 py-2 bg-purple-100 dark:bg-purple-800 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-700 font-medium transition-all text-sm"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Import from Excel</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                className="flex-1"
+              />
+              <Button
+                onClick={handleImport}
+                disabled={importing || !importFile}
+                size="sm"
+              >
+                {importing ? 'Importing...' : 'Import'}
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowImport(false);
+                  setImportFile(null);
+                }}
+                variant="secondary"
+                size="sm"
+              >
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       <div className="mb-4">
-        <input
+        <Input
           type="text"
           placeholder="Search production runs..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full border-2 border-purple-200 dark:border-purple-700 rounded-lg px-4 py-2 text-sm dark:bg-purple-800 dark:text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none"
+          className="w-full"
         />
       </div>
 
       <div className="space-y-4">
         {filteredRuns.length === 0 ? (
-          <div className="text-center py-12 bg-white dark:bg-purple-900 rounded-xl shadow-lg border-2 border-purple-200 dark:border-purple-800">
-            <p className="text-purple-600 dark:text-purple-400">{searchQuery ? 'No production runs match your search.' : 'No production runs found. Create your first production run!'}</p>
-          </div>
+          <Card>
+            <CardContent className="text-center py-12">
+              <p className="text-muted-foreground">{searchQuery ? 'No production runs match your search.' : 'No production runs found. Create your first production run!'}</p>
+            </CardContent>
+          </Card>
         ) : (
           filteredRuns.map((run) => (
-            <div key={run.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 p-6 hover:shadow-md transition-all">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{run.formulations?.name}</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Batch Size: {run.batch_size} {run.formulations?.batch_unit || 'kg'} • {format(new Date(run.production_date), 'MMM dd, yyyy')}
-                    {run.batch_number && <span className="ml-2 px-2 py-0.5 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs font-medium">Batch: {run.batch_number}</span>}
-                  </p>
-                  {run.expiry_date && (
-                    <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">
-                      Expiry: {format(new Date(run.expiry_date), 'MMM dd, yyyy')}
+            <Card key={run.id} className="hover:shadow-md transition-all">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground mb-1">{run.formulations?.name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Batch Size: {run.batch_size} {run.formulations?.batch_unit || 'kg'} • {format(new Date(run.production_date), 'MMM dd, yyyy')}
+                      {run.batch_number && <Badge className="ml-2">{run.batch_number}</Badge>}
                     </p>
-                  )}
-                  {run.cogs && (
-                    <p className="text-sm text-green-600 dark:text-green-400 font-medium mt-1">
-                      Production Cost: PKR {run.cogs.totalCost.toFixed(2)}
-                    </p>
-                  )}
-                  {run.notes && <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">{run.notes}</p>}
-                  <p className="text-xs text-purple-500 dark:text-purple-500 mt-1">Production Run ID: {run.id.slice(0, 8).toUpperCase()}</p>
-                </div>
-                <button
-                  onClick={async () => {
-                    try {
-                      const { generateProductionRunPDF } = await import('@/lib/pdf/utils');
-                      const doc = generateProductionRunPDF(run);
-                      doc.save(`production-run-${run.id.slice(0, 8)}.pdf`);
-                    } catch (error) {
-                      console.error('Error generating PDF:', error);
-                      alert('Failed to generate PDF');
-                    }
-                  }}
-                  className="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium shadow-sm transition-all"
-                >
-                  Print Run
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div>
-                  <h4 className="font-medium text-sm text-purple-700 dark:text-purple-300 mb-2">Materials Used:</h4>
-                  <ul className="text-sm text-purple-600 dark:text-purple-400 space-y-1">
-                    {run.production_materials_used?.map((mat, idx) => (
-                      <li key={idx} className="flex justify-between">
-                        <span>{mat.raw_materials?.name}:</span>
-                        <span className="font-medium text-red-600">
-                          -{mat.quantity_used.toFixed(3)} {mat.raw_materials?.unit}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                    {run.expiry_date && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Expiry: {format(new Date(run.expiry_date), 'MMM dd, yyyy')}
+                      </p>
+                    )}
+                    {run.cogs && (
+                      <p className="text-sm text-[hsl(var(--success))] font-medium mt-1">
+                        Production Cost: PKR {run.cogs.totalCost.toFixed(2)}
+                      </p>
+                    )}
+                    {run.notes && <p className="text-sm text-muted-foreground mt-1">{run.notes}</p>}
+                    <p className="text-xs text-muted-foreground mt-1">Production Run ID: {run.id.slice(0, 8).toUpperCase()}</p>
+                  </div>
+                  <Button
+                    onClick={async () => {
+                      try {
+                        const { generateProductionRunPDF } = await import('@/lib/pdf/utils');
+                        const doc = generateProductionRunPDF(run);
+                        doc.save(`production-run-${run.id.slice(0, 8)}.pdf`);
+                      } catch (error) {
+                        console.error('Error generating PDF:', error);
+                        showToast('Failed to generate PDF', 'error');
+                      }
+                    }}
+                    size="sm"
+                  >
+                    Print Run
+                  </Button>
                 </div>
                 
-                <div>
-                  <h4 className="font-medium text-sm text-purple-700 dark:text-purple-300 mb-2">Finished Products Produced:</h4>
-                  {run.finished_products_produced && run.finished_products_produced.length > 0 ? (
-                    <ul className="text-sm text-purple-600 dark:text-purple-400 space-y-1">
-                      {run.finished_products_produced.map((product, idx) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <h4 className="font-medium text-sm text-foreground mb-2">Materials Used:</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      {run.production_materials_used?.map((mat, idx) => (
                         <li key={idx} className="flex justify-between">
-                          <span>{product.name}:</span>
-                          <span className="font-medium text-green-600">
-                            +{product.quantity_produced} units
-                            {product.batch_size && product.units_per_batch && (
-                              <span className="text-xs text-purple-500 dark:text-purple-500 ml-1">
-                                ({product.batch_size} × {product.units_per_batch})
-                              </span>
-                            )}
+                          <span>{mat.raw_materials?.name}:</span>
+                          <span className="font-medium text-destructive">
+                            -{mat.quantity_used.toFixed(3)} {mat.raw_materials?.unit}
                           </span>
                         </li>
                       ))}
                     </ul>
-                  ) : run.finished_products && run.finished_products.length > 0 ? (
-                    <ul className="text-sm text-purple-600 dark:text-purple-400 space-y-1">
-                      {run.finished_products.map((product, idx) => (
-                        <li key={idx} className="flex justify-between">
-                          <span>{product.name}:</span>
-                          <span className="font-medium text-green-600">
-                            +{Math.floor(run.batch_size)} units
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-purple-600 dark:text-purple-400 italic">No finished products linked to this formulation</p>
-                  )}
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-medium text-sm text-foreground mb-2">Finished Products Produced:</h4>
+                    {run.finished_products_produced && run.finished_products_produced.length > 0 ? (
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        {run.finished_products_produced.map((product, idx) => (
+                          <li key={idx} className="flex justify-between">
+                            <span>{product.name}:</span>
+                            <span className="font-medium text-[hsl(var(--success))]">
+                              +{product.quantity_produced} units
+                              {product.batch_size && product.units_per_batch && (
+                                <span className="text-xs text-muted-foreground ml-1">
+                                  ({product.batch_size} × {product.units_per_batch})
+                                </span>
+                              )}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : run.finished_products && run.finished_products.length > 0 ? (
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        {run.finished_products.map((product, idx) => (
+                          <li key={idx} className="flex justify-between">
+                            <span>{product.name}:</span>
+                            <span className="font-medium text-[hsl(var(--success))]">
+                              +{Math.floor(run.batch_size)} units
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">No finished products linked to this formulation</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           ))
         )}
       </div>

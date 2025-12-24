@@ -2,6 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/components/ToastProvider';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 interface Formulation {
   id: string;
@@ -16,6 +23,7 @@ interface Category {
 
 export default function NewFinishedProductPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [formulations, setFormulations] = useState<Formulation[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -67,13 +75,14 @@ export default function NewFinishedProductPage() {
       });
 
       if (res.ok) {
+        showToast('Finished product created successfully', 'success');
         router.push('/finished-products');
       } else {
         const error = await res.json();
-        alert(`Error: ${error.error}`);
+        showToast(`Error: ${error.error}`, 'error');
       }
     } catch (error) {
-      alert('Failed to create finished product');
+      showToast('Failed to create finished product', 'error');
     } finally {
       setLoading(false);
     }
@@ -81,130 +90,137 @@ export default function NewFinishedProductPage() {
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Add New Finished Product</h1>
+      <h1 className="text-3xl font-bold mb-6 text-foreground">Add New Finished Product</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Name *</label>
-          <input
-            type="text"
-            required
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full border rounded px-3 py-2"
-          />
-        </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Product Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="name">Name *</Label>
+              <Input
+                id="name"
+                type="text"
+                required
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="mt-2"
+              />
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">SKU</label>
-          <input
-            type="text"
-            value={formData.sku}
-            onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-            className="w-full border rounded px-3 py-2"
-          />
-        </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="sku">SKU</Label>
+                <Input
+                  id="sku"
+                  type="text"
+                  value={formData.sku}
+                  onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                  className="mt-2"
+                />
+              </div>
+              <div>
+                <Label htmlFor="price">Selling Price *</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  required
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  className="mt-2"
+                />
+              </div>
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Price *</label>
-          <input
-            type="number"
-            step="0.01"
-            required
-            value={formData.price}
-            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-            className="w-full border rounded px-3 py-2"
-          />
-        </div>
+            <div>
+              <Label htmlFor="formulation">Formulation (Optional)</Label>
+              <Select
+                value={formData.formulation_id}
+                onValueChange={(value) => setFormData({ ...formData, formulation_id: value })}
+              >
+                <SelectTrigger id="formulation" className="mt-2">
+                  <SelectValue placeholder="Select Formulation" />
+                </SelectTrigger>
+                <SelectContent>
+                  {formulations.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Formulation</label>
-          <select
-            value={formData.formulation_id}
-            onChange={(e) => setFormData({ ...formData, formulation_id: e.target.value })}
-            className="w-full border rounded px-3 py-2"
-          >
-            <option value="">Select Formulation (Optional)</option>
-            {formulations.map((formulation) => (
-              <option key={formulation.id} value={formulation.id}>
-                {formulation.name}
-              </option>
-            ))}
-          </select>
-        </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="units_per_batch">Units Per Batch</Label>
+                <Input
+                  id="units_per_batch"
+                  type="number"
+                  value={formData.units_per_batch}
+                  onChange={(e) => setFormData({ ...formData, units_per_batch: e.target.value })}
+                  className="mt-2"
+                />
+              </div>
+              <div>
+                <Label htmlFor="shelf_life">Shelf Life (Days)</Label>
+                <Input
+                  id="shelf_life"
+                  type="number"
+                  value={formData.shelf_life_days}
+                  onChange={(e) => setFormData({ ...formData, shelf_life_days: e.target.value })}
+                  className="mt-2"
+                />
+              </div>
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Category</label>
-          <select
-            value={formData.category_id}
-            onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-            className="w-full border rounded px-3 py-2"
-          >
-            <option value="">Select Category</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-        </div>
+            <div>
+              <Label htmlFor="category">Category</Label>
+              <Select
+                value={formData.category_id}
+                onValueChange={(value) => setFormData({ ...formData, category_id: value })}
+              >
+                <SelectTrigger id="category" className="mt-2">
+                  <SelectValue placeholder="Select Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Units per Batch</label>
-          <input
-            type="number"
-            step="0.01"
-            value={formData.units_per_batch}
-            onChange={(e) => setFormData({ ...formData, units_per_batch: e.target.value })}
-            className="w-full border rounded px-3 py-2"
-            placeholder="e.g., 20 (means 1 batch = 20 finished units)"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Number of finished units produced from one batch. Example: If batch size is 1kg and this is 20, then 1kg = 20 finished units.
-          </p>
-        </div>
+            <div>
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                className="mt-2"
+                rows={3}
+              />
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Shelf Life (Days)</label>
-          <input
-            type="number"
-            value={formData.shelf_life_days}
-            onChange={(e) => setFormData({ ...formData, shelf_life_days: e.target.value })}
-            className="w-full border rounded px-3 py-2"
-            placeholder="e.g., 365 (for 1 year)"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Number of days the product remains usable after production. Used to calculate expiry dates.
-          </p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Notes</label>
-          <textarea
-            value={formData.notes}
-            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            className="w-full border rounded px-3 py-2"
-            rows={3}
-          />
-        </div>
-
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
-          >
-            {loading ? 'Saving...' : 'Save'}
-          </button>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
+            <div className="flex gap-2 pt-4">
+              <Button
+                type="submit"
+                disabled={loading}
+              >
+                {loading ? 'Saving...' : 'Save Product'}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => router.back()}
+                variant="secondary"
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

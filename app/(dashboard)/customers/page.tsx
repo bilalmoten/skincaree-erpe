@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useToast } from '@/components/ToastProvider';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface Customer {
   id: string;
@@ -13,6 +18,7 @@ interface Customer {
 }
 
 export default function CustomersPage() {
+  const { showToast } = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +72,7 @@ export default function CustomersPage() {
       a.click();
     } catch (error) {
       console.error('Error exporting:', error);
-      alert('Failed to export');
+      showToast('Failed to export', 'error');
     } finally {
       setExporting(false);
     }
@@ -102,16 +108,16 @@ export default function CustomersPage() {
       const result = await res.json();
       
       if (result.success) {
-        alert(`Successfully imported ${result.imported} customers${result.errors ? `\nErrors: ${result.errors.join(', ')}` : ''}`);
+        showToast(`Successfully imported ${result.imported} customers${result.errors ? `. Errors: ${result.errors.join(', ')}` : ''}`, 'success');
         setShowImport(false);
         setImportFile(null);
         fetchCustomers();
       } else {
-        alert(`Error: ${result.error || 'Import failed'}`);
+        showToast(`Error: ${result.error || 'Import failed'}`, 'error');
       }
     } catch (error) {
       console.error('Error importing:', error);
-      alert('Failed to import');
+      showToast('Failed to import', 'error');
     }
   };
 
@@ -122,123 +128,130 @@ export default function CustomersPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-purple-700 dark:text-purple-300">Customers</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Customers</h1>
         <div className="flex flex-wrap gap-2">
-          <button
+          <Button
             onClick={handleDownloadTemplate}
-            className="px-3 sm:px-4 py-2 bg-purple-100 dark:bg-purple-800 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-700 transition-all text-sm font-medium"
+            variant="secondary"
+            size="sm"
           >
             Download Template
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setShowImport(!showImport)}
-            className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all text-sm font-medium shadow-md hover:shadow-lg"
+            size="sm"
           >
             Import Excel
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleExport}
             disabled={exporting}
-            className="px-3 sm:px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all text-sm font-medium shadow-md hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
+            variant="default"
+            size="sm"
+            className="bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90"
           >
             {exporting ? 'Exporting...' : 'Export Excel'}
-          </button>
-          <Link
-            href="/customers/new"
-            className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all text-sm font-medium shadow-md hover:shadow-lg"
-          >
-            Add New
-          </Link>
+          </Button>
+          <Button asChild size="sm">
+            <Link href="/customers/new">Add New</Link>
+          </Button>
         </div>
       </div>
 
       <div className="mb-4">
-        <input
+        <Input
           type="text"
           placeholder="Search customers by name, email, phone, or address..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full max-w-md border-2 border-purple-200 dark:border-purple-700 rounded-lg px-4 py-2 text-sm dark:bg-purple-800 dark:text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none"
+          className="w-full max-w-md"
         />
       </div>
 
       {showImport && (
-        <div className="mb-6 p-4 bg-white dark:bg-purple-900 rounded-xl shadow-lg border-2 border-purple-200 dark:border-purple-800">
-          <h2 className="font-semibold text-purple-700 dark:text-purple-300 mb-2">Import from Excel</h2>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <input
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-              className="flex-1 border-2 border-purple-200 dark:border-purple-700 rounded-lg px-2 py-1 dark:bg-purple-800 dark:text-white"
-            />
-            <button
-              onClick={handleImport}
-              disabled={importing || !importFile}
-              className="px-4 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all text-sm font-medium shadow-sm"
-            >
-              {importing ? 'Importing...' : 'Import'}
-            </button>
-            <button
-              onClick={() => {
-                setShowImport(false);
-                setImportFile(null);
-              }}
-              className="px-4 py-1 bg-purple-100 dark:bg-purple-800 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-700 transition-all text-sm font-medium"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Import from Excel</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                className="flex-1"
+              />
+              <Button
+                onClick={handleImport}
+                disabled={importing || !importFile}
+                size="sm"
+              >
+                {importing ? 'Importing...' : 'Import'}
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowImport(false);
+                  setImportFile(null);
+                }}
+                variant="secondary"
+                size="sm"
+              >
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      <div className="overflow-x-auto">
-        <div className="bg-white dark:bg-purple-900 rounded-xl shadow-lg border-2 border-purple-200 dark:border-purple-800 overflow-hidden">
-          <table className="min-w-full">
-            <thead>
-              <tr className="bg-purple-50 dark:bg-purple-800">
-                <th className="px-4 py-2 text-left text-sm font-medium text-purple-700 dark:text-purple-300 border-b-2 border-purple-200 dark:border-purple-700">Name</th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-purple-700 dark:text-purple-300 border-b-2 border-purple-200 dark:border-purple-700">Email</th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-purple-700 dark:text-purple-300 border-b-2 border-purple-200 dark:border-purple-700">Phone</th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-purple-700 dark:text-purple-300 border-b-2 border-purple-200 dark:border-purple-700">Address</th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-purple-700 dark:text-purple-300 border-b-2 border-purple-200 dark:border-purple-700">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
+      <Card>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead className="hidden md:table-cell">Email</TableHead>
+                <TableHead className="hidden lg:table-cell">Phone</TableHead>
+                <TableHead className="hidden xl:table-cell">Address</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filteredCustomers.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-purple-600 dark:text-purple-400">
-                    No customers found. Add your first customer!
-                  </td>
-                </tr>
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    {searchQuery ? 'No customers match your search.' : 'No customers found. Add your first customer!'}
+                  </TableCell>
+                </TableRow>
               ) : (
                 filteredCustomers.map((customer) => (
-                  <tr key={customer.id} className="hover:bg-purple-50 dark:hover:bg-purple-800/50 transition-colors">
-                  <td className="px-4 py-2 border-b border-purple-200 dark:border-purple-700 text-gray-900 dark:text-white">{customer.name}</td>
-                  <td className="px-4 py-2 border-b border-purple-200 dark:border-purple-700 text-gray-900 dark:text-white">{customer.email || '-'}</td>
-                  <td className="px-4 py-2 border-b border-purple-200 dark:border-purple-700 text-gray-900 dark:text-white">{customer.phone || '-'}</td>
-                  <td className="px-4 py-2 border-b border-purple-200 dark:border-purple-700 text-gray-900 dark:text-white">{customer.address || '-'}</td>
-                  <td className="px-4 py-2 border-b border-purple-200 dark:border-purple-700">
-                    <Link
-                      href={`/customers/${customer.id}`}
-                      className="text-purple-600 dark:text-purple-400 hover:underline mr-2 font-medium"
-                    >
-                      Edit
-                    </Link>
-                    <Link
-                      href={`/customers/${customer.id}/ledger`}
-                      className="text-green-600 hover:underline"
-                    >
-                      Ledger
-                    </Link>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-      </div>
+                  <TableRow key={customer.id}>
+                    <TableCell className="text-xs sm:text-sm">{customer.name}</TableCell>
+                    <TableCell className="hidden md:table-cell text-xs sm:text-sm">{customer.email || '-'}</TableCell>
+                    <TableCell className="hidden lg:table-cell text-xs sm:text-sm">{customer.phone || '-'}</TableCell>
+                    <TableCell className="hidden xl:table-cell truncate max-w-xs text-xs sm:text-sm">{customer.address || '-'}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
+                        <Link
+                          href={`/customers/${customer.id}`}
+                          className="text-primary hover:underline font-medium text-xs sm:text-sm"
+                        >
+                          Edit
+                        </Link>
+                        <Link
+                          href={`/customers/${customer.id}/ledger`}
+                          className="text-[hsl(var(--success))] hover:underline text-xs sm:text-sm"
+                        >
+                          Ledger
+                        </Link>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
     </div>
   );
 }

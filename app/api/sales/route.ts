@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     const { customer_id, sale_date, items, notes, is_cash_paid, discount_type, discount_value } = body;
+    const isCashPaid = is_cash_paid === true || is_cash_paid === 'true';
 
     // Calculate subtotal
     const subtotal = items.reduce((sum: number, item: any) => {
@@ -81,16 +82,59 @@ export async function POST(request: NextRequest) {
     if (saleError) throw saleError;
 
     // Create sale items and update inventory
+    const consumeBatchStock = async (finishedProductId: string, quantity: number) => {
+      let remaining = quantity;
+      const { data: batches } = await supabase
+        .from('batch_tracking')
+        .select('id, quantity_remaining, status')
+        .eq('finished_product_id', finishedProductId)
+        .gt('quantity_remaining', 0)
+        .order('production_date', { ascending: true })
+        .order('created_at', { ascending: true });
+
+      for (const batch of batches || []) {
+        if (remaining <= 0) break;
+        const deduction = Math.min(batch.quantity_remaining, remaining);
+        const newQuantity = Math.max(batch.quantity_remaining - deduction, 0);
+        remaining -= deduction;
+        const updatedStatus = newQuantity <= 0 ? 'depleted' : batch.status || 'active';
+
+        await supabase
+          .from('batch_tracking')
+          .update({ quantity_remaining: newQuantity, status: updatedStatus })
+          .eq('id', batch.id);
+      }
+
+      if (remaining > 0) {
+        console.warn(`Batch depletion shortfall: ${remaining} units of ${finishedProductId} could not be consumed`);
+      }
+    };
+
     const saleItems = [];
     for (const item of items) {
-      // Check inventory
-      const { data: inventory } = await supabase
+      // Check inventory - create record if it doesn't exist
+      const { data: inventory, error: invError } = await supabase
         .from('finished_product_inventory')
         .select('quantity')
         .eq('finished_product_id', item.finished_product_id)
         .single();
 
-      const available = inventory?.quantity || 0;
+      // If inventory record doesn't exist, create it with 0 quantity
+      let available = 0;
+      if (invError && invError.code === 'PGRST116') {
+        // Record doesn't exist, create it
+        const { error: createError } = await supabase
+          .from('finished_product_inventory')
+          .insert({
+            finished_product_id: item.finished_product_id,
+            quantity: 0,
+          });
+        if (createError) throw createError;
+        available = 0;
+      } else if (inventory) {
+        available = inventory.quantity || 0;
+      }
+
       const requested = parseInt(item.quantity);
 
       // Validate negative inventory
@@ -128,6 +172,9 @@ export async function POST(request: NextRequest) {
       if (itemError) throw itemError;
       saleItems.push(saleItem);
 
+      // Update batch tracking before inventory snapshot
+      await consumeBatchStock(item.finished_product_id, requested);
+
       // Update inventory (deduct)
       await supabase
         .from('finished_product_inventory')
@@ -139,18 +186,25 @@ export async function POST(request: NextRequest) {
         });
     }
 
-    // Add to customer ledger if customer exists and not cash paid
-    if (customer_id && !is_cash_paid) {
-      // Get current balance
+    if (customer_id) {
+      // Get current balance - order by created_at and id for consistency
       const { data: ledgerEntries } = await supabase
         .from('customer_ledger')
-        .select('balance')
+        .select('balance, id')
         .eq('customer_id', customer_id)
         .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
         .limit(1);
 
       const currentBalance = ledgerEntries?.[0]?.balance || 0;
-      const newBalance = currentBalance + totalAmount;
+      const newBalance = isCashPaid ? currentBalance : currentBalance + totalAmount;
+
+      const ledgerNotes = (notes || '').trim();
+      const notePayload = isCashPaid
+        ? ledgerNotes
+          ? `${ledgerNotes} (Cash sale)`
+          : 'Cash sale'
+        : ledgerNotes || null;
 
       await supabase
         .from('customer_ledger')
@@ -161,6 +215,7 @@ export async function POST(request: NextRequest) {
           amount: totalAmount,
           balance: newBalance,
           transaction_date: sale_date || new Date().toISOString().split('T')[0],
+          notes: notePayload,
         });
     }
 

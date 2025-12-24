@@ -8,7 +8,7 @@ export async function GET() {
     // Get all finished products
     const { data: products, error: productsError } = await supabase
       .from('finished_products')
-      .select('*')
+      .select('*, formulations(name), material_categories(name)')
       .order('created_at', { ascending: false });
 
     if (productsError) throw productsError;
@@ -24,14 +24,7 @@ export async function GET() {
       .select('finished_product_id, quantity')
       .in('finished_product_id', productIds);
 
-    // Get formulations
-    const formulationIds = [...new Set(products.map((p: any) => p.formulation_id).filter(Boolean))];
-    const { data: formulations } = await supabase
-      .from('formulations')
-      .select('id, name')
-      .in('id', formulationIds);
-
-    // Create maps
+    // Create map
     const inventoryMap = new Map();
     if (inventory) {
       inventory.forEach((inv: any) => {
@@ -39,14 +32,7 @@ export async function GET() {
       });
     }
 
-    const formulationMap = new Map();
-    if (formulations) {
-      formulations.forEach((f: any) => {
-        formulationMap.set(f.id, { id: f.id, name: f.name });
-      });
-    }
-
-    // Combine products with inventory and formulations
+    // Combine products with inventory
     const productsWithDetails = products.map((product: any) => {
       const qty = inventoryMap.get(product.id) ?? 0;
       return {
@@ -56,8 +42,7 @@ export async function GET() {
             id: '',
             quantity: qty
           }
-        ],
-        formulations: product.formulation_id ? formulationMap.get(product.formulation_id) : null
+        ]
       };
     });
 

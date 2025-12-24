@@ -3,6 +3,13 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import { useToast } from '@/components/ToastProvider';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 interface RawMaterial {
   id: string;
@@ -38,11 +45,18 @@ interface PurchaseItem {
 }
 
 export default function PurchasesPage() {
+  const { showToast } = useToast();
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [filteredOrders, setFilteredOrders] = useState<PurchaseOrder[]>([]);
   const [materials, setMaterials] = useState<RawMaterial[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     supplier_name: '',
     purchase_date: new Date().toISOString().split('T')[0],
@@ -60,12 +74,48 @@ export default function PurchasesPage() {
       const res = await fetch('/api/purchase-orders');
       const data = await res.json();
       setPurchaseOrders(data);
+      setFilteredOrders(data);
     } catch (error) {
       console.error('Error fetching purchase orders:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch('/api/purchases/excel/export');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'purchases.xlsx';
+      a.click();
+    } catch (error) {
+      console.error('Error exporting:', error);
+      showToast('Failed to export', 'error');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredOrders(purchaseOrders);
+    } else {
+      const query = searchQuery.toLowerCase();
+      const filtered = purchaseOrders.filter((order) =>
+        order.supplier_name?.toLowerCase().includes(query) ||
+        order.id.toLowerCase().includes(query) ||
+        order.notes?.toLowerCase().includes(query) ||
+        order.purchase_order_items?.some((item) => 
+          item.raw_materials?.name.toLowerCase().includes(query)
+        )
+      );
+      setFilteredOrders(filtered);
+    }
+  }, [searchQuery, purchaseOrders]);
 
   const fetchMaterials = async () => {
     try {
@@ -118,7 +168,7 @@ export default function PurchasesPage() {
     );
 
     if (validItems.length === 0) {
-      alert('Please add at least one item');
+      showToast('Please add at least one item', 'error');
       setSaving(false);
       return;
     }
@@ -136,19 +186,70 @@ export default function PurchasesPage() {
       const result = await res.json();
 
       if (res.ok) {
-        alert('Purchase order created successfully!');
+        showToast('Purchase order created successfully!', 'success');
         setShowForm(false);
         setFormData({ supplier_name: '', purchase_date: new Date().toISOString().split('T')[0], notes: '' });
         setItems([]);
         fetchPurchaseOrders();
         fetchMaterials();
       } else {
-        alert(`Error: ${result.error || 'Failed to create purchase order'}`);
+        showToast(`Error: ${result.error || 'Failed to create purchase order'}`, 'error');
       }
     } catch (error) {
-      alert('Failed to create purchase order');
+      showToast('Failed to create purchase order', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await fetch('/api/excel/templates/purchases');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'purchases_template.xlsx';
+      a.click();
+    } catch (error) {
+      console.error('Error downloading template:', error);
+      showToast('Failed to download template', 'error');
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFile) return;
+
+    setImporting(true);
+    const formData = new FormData();
+    formData.append('file', importFile);
+
+    try {
+      const res = await fetch('/api/purchase-orders/excel/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await res.json();
+      
+      if (result.success) {
+        let msg = `Successfully imported ${result.imported} purchase orders`;
+        if (result.errors && result.errors.length > 0) {
+          msg += `. Errors in some rows: ${result.errors.join(', ').slice(0, 100)}...`;
+        }
+        showToast(msg, result.errors ? 'warning' : 'success');
+        setShowImport(false);
+        setImportFile(null);
+        fetchPurchaseOrders();
+        fetchMaterials();
+      } else {
+        showToast(`Error: ${result.error || 'Import failed'}`, 'error');
+      }
+    } catch (error) {
+      console.error('Error importing:', error);
+      showToast('Failed to import', 'error');
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -157,202 +258,288 @@ export default function PurchasesPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto p-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Purchase Orders</h1>
-        <button
-          onClick={() => setShowForm(true)}
-          className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all shadow-sm hover:shadow-md font-medium text-sm sm:text-base"
-        >
-          + New Purchase Order
-        </button>
+        <h1 className="text-3xl font-bold text-foreground">Purchase Orders</h1>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={handleDownloadTemplate}
+            variant="secondary"
+            size="sm"
+          >
+            Download Template
+          </Button>
+          <Button
+            onClick={() => setShowImport(!showImport)}
+            variant="outline"
+            size="sm"
+          >
+            Import Excel
+          </Button>
+          <Button
+            onClick={handleExport}
+            disabled={exporting}
+            variant="default"
+            size="sm"
+            className="bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90"
+          >
+            {exporting ? 'Exporting...' : 'Export Excel'}
+          </Button>
+          <Button
+            onClick={() => setShowForm(true)}
+            size="sm"
+          >
+            + New Purchase Order
+          </Button>
+        </div>
+      </div>
+
+      {showImport && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Import from Excel</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                className="flex-1"
+              />
+              <Button
+                onClick={handleImport}
+                disabled={importing || !importFile}
+                size="sm"
+              >
+                {importing ? 'Importing...' : 'Import'}
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowImport(false);
+                  setImportFile(null);
+                }}
+                variant="secondary"
+                size="sm"
+              >
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="mb-4">
+        <Input
+          type="text"
+          placeholder="Search purchase orders by supplier, notes, or items..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full max-w-md"
+        />
       </div>
 
       {showForm && (
-        <div className="mb-6 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-6">New Purchase Order</h2>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>New Purchase Order</CardTitle>
+          </CardHeader>
+          <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Supplier Name</label>
-                <input
+                <Label htmlFor="supplier">Supplier Name</Label>
+                <Input
+                  id="supplier"
                   type="text"
                   value={formData.supplier_name}
                   onChange={(e) => setFormData({ ...formData, supplier_name: e.target.value })}
-                  className="w-full border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-2.5 dark:bg-slate-700 dark:text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-900/50 transition-all"
                   placeholder="Enter supplier name"
+                  className="mt-2"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Purchase Date *</label>
-                <input
+                <Label htmlFor="purchase-date">Purchase Date *</Label>
+                <Input
+                  id="purchase-date"
                   type="date"
                   required
                   value={formData.purchase_date}
                   onChange={(e) => setFormData({ ...formData, purchase_date: e.target.value })}
-                  className="w-full border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-2.5 dark:bg-slate-700 dark:text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-900/50 transition-all"
+                  className="mt-2"
                 />
               </div>
             </div>
 
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Items</label>
-                <button
+                <Label>Items</Label>
+                <Button
                   type="button"
                   onClick={addItem}
-                  className="text-sm px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all font-medium shadow-sm"
+                  size="sm"
                 >
                   + Add Item
-                </button>
+                </Button>
               </div>
 
               {items.length > 0 && (
-                <div className="mb-3 hidden sm:grid grid-cols-12 gap-2 px-3 py-3 border-b border-gray-200 dark:border-slate-700 bg-[var(--surface-muted)] dark:bg-slate-700/30 rounded-t-xl">
-                  <div className="col-span-5 text-sm font-semibold text-gray-700 dark:text-gray-300">Ingredient</div>
-                  <div className="col-span-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Quantity</div>
-                  <div className="col-span-1 text-sm font-semibold text-gray-700 dark:text-gray-300">Unit</div>
-                  <div className="col-span-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Price</div>
-                  <div className="col-span-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Action</div>
+                <div className="mb-3 hidden sm:grid grid-cols-12 gap-2 px-3 py-3 border-b bg-muted rounded-t-xl">
+                  <div className="col-span-5 text-sm font-semibold text-foreground">Ingredient</div>
+                  <div className="col-span-2 text-sm font-semibold text-foreground">Quantity</div>
+                  <div className="col-span-1 text-sm font-semibold text-foreground">Unit</div>
+                  <div className="col-span-2 text-sm font-semibold text-foreground">Price</div>
+                  <div className="col-span-2 text-sm font-semibold text-foreground">Action</div>
                 </div>
               )}
 
               {items.map((item, index) => {
                 const material = materials.find((m) => m.id === item.raw_material_id);
-                const available = material?.raw_material_inventory?.[0]?.quantity || 0;
 
                 return (
-                  <div key={index} className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-2 mb-3 sm:mb-2 p-4 sm:p-3 border border-gray-200 dark:border-slate-700 rounded-xl items-center bg-white dark:bg-slate-800/50 hover:bg-[var(--surface-muted)] dark:hover:bg-slate-700/50 transition-colors">
+                  <div key={index} className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-2 mb-3 sm:mb-2 p-4 sm:p-3 border rounded-xl items-center bg-card hover:bg-muted transition-colors">
                     <div className="col-span-1 sm:col-span-5">
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 sm:hidden">Ingredient</label>
-                      <select
+                      <Label className="block text-xs font-medium mb-1 sm:hidden">Ingredient</Label>
+                      <Select
                         value={item.raw_material_id}
-                        onChange={(e) => updateItem(index, 'raw_material_id', e.target.value)}
-                        className="w-full border border-gray-300 dark:border-slate-600 rounded-xl px-3 py-2 dark:bg-slate-700 dark:text-white text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-900/50 transition-all"
-                        required
+                        onValueChange={(value) => updateItem(index, 'raw_material_id', value)}
                       >
-                        <option value="">Select Material</option>
-                        {materials.map((material) => (
-                          <option key={material.id} value={material.id}>
-                            {material.name} - Stock: {material.raw_material_inventory?.[0]?.quantity || 0}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="w-full text-sm">
+                          <SelectValue placeholder="Select Material" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {materials.map((material) => (
+                            <SelectItem key={material.id} value={material.id}>
+                              {material.name} - Stock: {material.raw_material_inventory?.[0]?.quantity || 0}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="col-span-1 sm:col-span-2">
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 sm:hidden">Quantity</label>
-                      <input
+                      <Label className="block text-xs font-medium mb-1 sm:hidden">Quantity</Label>
+                      <Input
                         type="number"
                         step="0.001"
                         placeholder="Qty"
                         value={item.quantity}
                         onChange={(e) => updateItem(index, 'quantity', e.target.value)}
-                        className="w-full border border-gray-300 dark:border-slate-600 rounded-xl px-3 py-2 dark:bg-slate-700 dark:text-white text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-900/50 transition-all"
+                        className="text-sm"
                         required
                         min="0.001"
                       />
                     </div>
-                    <div className="col-span-1 sm:col-span-1 text-sm text-gray-700 dark:text-gray-300 text-center sm:text-center">
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 sm:hidden">Unit</label>
-                      <span className="inline-block px-3 py-1.5 bg-gray-100 dark:bg-slate-700 rounded-xl font-medium">{material?.unit || '-'}</span>
+                    <div className="col-span-1 sm:col-span-1 text-sm text-foreground text-center sm:text-center">
+                      <Label className="block text-xs font-medium mb-1 sm:hidden">Unit</Label>
+                      <span className="inline-block px-3 py-1.5 bg-muted rounded-xl font-medium">{material?.unit || '-'}</span>
                     </div>
                     <div className="col-span-1 sm:col-span-2">
-                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 sm:hidden">Price</label>
-                      <input
+                      <Label className="block text-xs font-medium mb-1 sm:hidden">Price</Label>
+                      <Input
                         type="number"
                         step="0.01"
                         placeholder="Price"
                         value={item.unit_price}
                         onChange={(e) => updateItem(index, 'unit_price', e.target.value)}
-                        className="w-full border border-gray-300 dark:border-slate-600 rounded-xl px-3 py-2 dark:bg-slate-700 dark:text-white text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-900/50 transition-all"
+                        className="text-sm"
                         required
                       />
                     </div>
                     <div className="col-span-1 sm:col-span-2">
-                      <button
+                      <Button
                         type="button"
                         onClick={() => removeItem(index)}
-                        className="w-full px-3 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all text-sm font-medium shadow-sm"
+                        variant="destructive"
+                        size="sm"
+                        className="w-full"
                       >
                         Remove
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            <div className="text-right text-xl font-bold text-gray-900 dark:text-white py-4 px-4 bg-[var(--surface-muted)] dark:bg-slate-700/30 rounded-xl">
+            <div className="text-right text-xl font-bold text-foreground py-4 px-4 bg-muted rounded-xl">
               Total: PKR {calculateTotal().toFixed(2)}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Notes</label>
-              <textarea
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                className="w-full border border-gray-300 dark:border-slate-600 rounded-xl px-4 py-2.5 dark:bg-slate-700 dark:text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-900/50 transition-all"
+                className="mt-2"
                 rows={3}
               />
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-200 dark:border-slate-700">
-              <button
+            <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
+              <Button
                 type="submit"
                 disabled={saving}
-                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 disabled:bg-gray-400 transition-all font-medium shadow-sm hover:shadow-md"
+                className="flex-1"
               >
                 {saving ? 'Saving...' : 'Save Purchase Order'}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => {
                   setShowForm(false);
                   setFormData({ supplier_name: '', purchase_date: new Date().toISOString().split('T')[0], notes: '' });
                   setItems([]);
                 }}
-                className="flex-1 sm:flex-initial px-4 py-2.5 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-slate-600 transition-all font-medium"
+                variant="secondary"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       <div className="space-y-4">
-        {purchaseOrders.length === 0 ? (
-          <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700">
-            <p className="text-gray-600 dark:text-gray-400">No purchase orders found. Create your first purchase order!</p>
-          </div>
+        {filteredOrders.length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-12">
+              <p className="text-muted-foreground">
+                {searchQuery ? 'No purchase orders match your search.' : 'No purchase orders found. Create your first purchase order!'}
+              </p>
+            </CardContent>
+          </Card>
         ) : (
-          purchaseOrders.map((order) => (
-            <div key={order.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 p-6 hover:shadow-md transition-all">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                    Purchase Order #{order.id.slice(0, 8)}
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    {order.supplier_name || 'No Supplier'} • {format(new Date(order.purchase_date), 'MMM dd, yyyy')}
-                  </p>
-                  <p className="text-xl font-bold text-gray-900 dark:text-white">
-                    PKR {order.total_amount.toFixed(2)}
-                  </p>
+          filteredOrders.map((order) => (
+            <Card key={order.id} className="hover:shadow-md transition-all">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground mb-1">
+                      Purchase Order #{order.id.slice(0, 8)}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {order.supplier_name || 'No Supplier'} • {format(new Date(order.purchase_date), 'MMM dd, yyyy')}
+                    </p>
+                    <p className="text-xl font-bold text-foreground">
+                      PKR {order.total_amount.toFixed(2)}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700">
-                <h4 className="font-medium text-sm mb-2 text-gray-900 dark:text-white">Items:</h4>
-                <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                  {order.purchase_order_items?.map((item, idx) => (
-                    <li key={idx}>
-                      {item.raw_materials?.name}: {item.quantity} {item.raw_materials?.unit} × PKR {item.unit_price.toFixed(2)} = PKR {item.subtotal.toFixed(2)}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+                <div className="mt-4 pt-4 border-t">
+                  <h4 className="font-medium text-sm mb-2 text-foreground">Items:</h4>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    {order.purchase_order_items?.map((item, idx) => (
+                      <li key={idx}>
+                        {item.raw_materials?.name}: {item.quantity} {item.raw_materials?.unit} × PKR {item.unit_price.toFixed(2)} = PKR {item.subtotal.toFixed(2)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
           ))
         )}
       </div>
