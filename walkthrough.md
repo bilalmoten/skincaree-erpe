@@ -115,3 +115,4 @@ The "command center" of the ERP. It provides real-time insights into:
 2.  **Production** -> 🔴 Decreases `Raw Material Inventory` | 🟢 Increases `Bulk Product Inventory`
 3.  **Packaging** -> 🔴 Decreases `Bulk Product Inventory` & `Packaging Material Inventory` | 🟢 Increases `Finished Product Inventory`
 4.  **Sale** -> 🔴 Decreases `Finished Product Inventory` | 🟢 Updates `Customer Ledger` & `Revenue`
+

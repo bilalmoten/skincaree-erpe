@@ -43,6 +43,17 @@ export default function FormulationsPage() {
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+  const toggleCard = (id: string) => {
+    const newExpanded = new Set(expandedCards);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
+    }
+    setExpandedCards(newExpanded);
+  };
 
   useEffect(() => {
     fetchFormulations();
@@ -252,61 +263,109 @@ export default function FormulationsPage() {
             </CardContent>
           </Card>
         ) : (
-          filteredFormulations.map((formulation) => (
-            <Card
-              key={formulation.id}
-              className="hover:shadow-md transition-all"
-            >
-              <CardContent className="p-6">
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-3">
-                  <div className="flex-1">
-                    <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-1">
-                      {formulation.name}
-                    </h3>
-                    {formulation.description && (
-                      <p className="text-muted-foreground text-sm mt-1 mb-2">
-                        {formulation.description}
+          filteredFormulations.map((formulation) => {
+            const isExpanded = expandedCards.has(formulation.id);
+            
+            return (
+              <Card
+                key={formulation.id}
+                className="hover:shadow-md transition-all"
+              >
+                <CardContent className="p-6">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg sm:text-xl font-semibold text-foreground">
+                          {formulation.name}
+                        </h3>
+                        <button
+                          onClick={() => toggleCard(formulation.id)}
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                          aria-label={isExpanded ? 'Collapse' : 'Expand'}
+                        >
+                          {isExpanded ? '▼' : '▶'}
+                        </button>
+                      </div>
+                      {formulation.description && (
+                        <p className="text-muted-foreground text-sm mt-1 mb-2">
+                          {formulation.description}
+                        </p>
+                      )}
+                      <p className="text-sm text-muted-foreground">
+                        Batch Size: {formulation.batch_size}{" "}
+                        {formulation.batch_unit || "kg"}
                       </p>
-                    )}
-                    <p className="text-sm text-muted-foreground">
-                      Batch Size: {formulation.batch_size}{" "}
-                      {formulation.batch_unit || "kg"}
-                    </p>
-                    {formulation.cogs && (
-                      <p className="text-sm text-[hsl(var(--success))] font-medium mt-2">
-                        COGS: PKR {formulation.cogs.totalCost.toFixed(2)} per
-                        batch (PKR {formulation.cogs.costPerUnit.toFixed(2)} per{" "}
-                        {formulation.batch_unit || "kg"})
-                      </p>
-                    )}
+                      {formulation.cogs && (
+                        <p className="text-sm text-[hsl(var(--success))] font-medium mt-2">
+                          COGS: PKR {formulation.cogs.totalCost.toFixed(2)} per
+                          batch (PKR {formulation.cogs.costPerUnit.toFixed(2)} per{" "}
+                          {formulation.batch_unit || "kg"})
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button
+                        onClick={async () => {
+                          try {
+                            const { generateFormulationPDF } = await import('@/lib/pdf/utils');
+                            const doc = generateFormulationPDF(formulation);
+                            doc.save(`formulation-${formulation.name.replace(/\s+/g, '-')}.pdf`);
+                          } catch (error) {
+                            console.error('Error generating PDF:', error);
+                            showToast('Failed to generate PDF', 'error');
+                          }
+                        }}
+                        variant="outline"
+                        size="sm"
+                      >
+                        📄 Print
+                      </Button>
+                      <Button
+                        asChild
+                        className="bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90"
+                        size="sm"
+                      >
+                        <Link href={`/production?formulation=${formulation.id}`}>
+                          Create Production
+                        </Link>
+                      </Button>
+                      <Button asChild size="sm">
+                        <Link href={`/formulations/${formulation.id}`}>Edit</Link>
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <Button
-                      asChild
-                      className="bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90"
-                    >
-                      <Link href={`/production?formulation=${formulation.id}`}>
-                        Create Production
-                      </Link>
-                    </Button>
-                    <Button asChild>
-                      <Link href={`/formulations/${formulation.id}`}>Edit</Link>
-                    </Button>
-                  </div>
-                </div>
-                <div className="mt-2">
-                  <h4 className="font-medium text-sm mb-1">Ingredients:</h4>
-                  <ul className="text-sm text-muted-foreground">
-                    {formulation.formulation_ingredients?.map((ing, idx) => (
-                      <li key={idx}>
-                        {ing.raw_materials?.name}: {ing.quantity} {ing.unit}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                  
+                  {/* Ingredients - only show when expanded */}
+                  {isExpanded && (
+                    <div className="mt-4 pt-4 border-t">
+                      <h4 className="font-medium text-sm mb-2">Ingredients:</h4>
+                      <div className="bg-muted/30 rounded-lg p-3">
+                        <ul className="text-sm text-muted-foreground space-y-2">
+                          {formulation.formulation_ingredients?.map((ing, idx) => {
+                            // Handle both raw materials and bulk products
+                            const ingredientName = ing.name || ing.raw_materials?.name || ing.bulk_products?.name || 'Unknown Ingredient';
+                            const percentage = formulation.batch_size > 0 
+                              ? ((ing.quantity / formulation.batch_size) * 100).toFixed(1) 
+                              : '0';
+                            
+                            return (
+                              <li key={idx} className="flex justify-between items-center py-1">
+                                <span className="font-medium">{ingredientName}</span>
+                                <div className="flex gap-4 text-right">
+                                  <span className="text-[hsl(var(--info))]">{percentage}%</span>
+                                  <span className="min-w-[80px]">{ing.quantity} {ing.unit}</span>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
     </div>

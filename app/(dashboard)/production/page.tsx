@@ -292,10 +292,14 @@ function ProductionPageContent() {
         });
         fetchRuns();
       } else {
-        const errorMsg = result.details 
-          ? `${result.error}\n${JSON.stringify(result.details, null, 2)}`
-          : result.error || 'Failed to create production run';
-        showToast(`Error: ${errorMsg}`, 'error');
+        // Display user-friendly error message
+        const errorMessage = result.error || 'Failed to create production run';
+        showToast(errorMessage, 'error');
+        
+        // If there are details, log them for debugging
+        if (result.details) {
+          console.error('Production error details:', result.details);
+        }
       }
     } catch (error) {
       showToast('Failed to create production run', 'error');

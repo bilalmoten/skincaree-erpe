@@ -53,25 +53,26 @@ export async function POST(req: NextRequest) {
 
   // Delete order respects FK constraints: children first, parents last
   const fullResetTables = [
+    // Delete children first, parents last
     'customer_ledger',
     'sales_items',
     'sales',
+    'batch_tracking',
     'packaging_materials_used',
     'packaging_runs',
     'production_materials_used',
     'quality_tests',
     'production_runs',
-    'batch_tracking',
     'purchase_order_items',
     'cost_history',
     'purchase_orders',
     'finished_product_inventory',
-    'finished_products',
     'bulk_product_inventory',
-    'bulk_products',
-    'formulation_ingredients',
-    'formulations',
     'raw_material_inventory',
+    'formulation_ingredients',
+    'finished_products',
+    'bulk_products',
+    'formulations',
     'raw_materials',
     'material_categories',
     'customers',
@@ -153,8 +154,17 @@ export async function POST(req: NextRequest) {
       return 'Customers and ledger cleared';
     },
     full: async () => {
+      const errors: string[] = [];
       for (const table of fullResetTables) {
-        await deleteTable(table);
+        try {
+          await deleteTable(table);
+        } catch (error: any) {
+          errors.push(`Failed to delete ${table}: ${error.message}`);
+          // Don't throw immediately, collect all errors
+        }
+      }
+      if (errors.length > 0) {
+        throw new Error(`Full reset partially failed:\n${errors.join('\n')}`);
       }
       return 'Full system reset successful';
     },

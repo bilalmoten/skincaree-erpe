@@ -50,55 +50,60 @@ export function generateSalesInvoicePDF(sale: any) {
   // Add header
   let y = addCompanyHeader(doc, 'Sales Invoice');
 
-  // Sale details
-  doc.setFontSize(11);
+  // Invoice details box with background
+  doc.setFillColor(249, 250, 251);
+  doc.rect(20, y, 170, 30, 'F');
+
+  doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text('Invoice Details', 20, y);
-  y += 8;
+  doc.text('Invoice Details', 25, y + 8);
+
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Invoice #: ${sale.id.slice(0, 8).toUpperCase()}`, 20, y);
-  y += 6;
-  doc.text(`Date: ${new Date(sale.sale_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, 20, y);
-  y += 6;
-  doc.text(`Customer: ${sale.customers?.name || 'Walk-in Customer'}`, 20, y);
-  y += 6;
+  doc.text(`Invoice #: ${sale.id.slice(0, 8).toUpperCase()}`, 25, y + 16);
+  doc.text(`Date: ${new Date(sale.sale_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, 25, y + 22);
+  doc.text(`Customer: ${sale.customers?.name || 'Walk-in Customer'}`, 25, y + 28);
+
   if (sale.is_cash_paid) {
     doc.setTextColor(0, 128, 0);
     doc.setFont('helvetica', 'bold');
-    doc.text('✓ Payment: Cash Paid', 20, y);
+    doc.text('✓ PAID IN CASH', 140, y + 16);
     doc.setTextColor(0, 0, 0);
     doc.setFont('helvetica', 'normal');
   }
-  y += 12;
+
+  y += 40; // Increased spacing
 
   // Calculate subtotal and discount
   const subtotal = sale.subtotal || sale.sales_items?.reduce((sum: number, item: any) => sum + item.subtotal, 0) || sale.total_amount;
   const discountAmount = sale.discount_amount || 0;
 
   // Items table header
-  doc.setFontSize(11);
+  doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.text('Items', 20, y);
-  y += 8;
+  y += 10;
 
-  // Table header background (using theme muted color)
-  doc.setFillColor(249, 250, 251);
-  doc.rect(20, y - 5, 170, 8, 'F');
+  // Table header with better styling
+  doc.setFillColor(230, 230, 230);
+  doc.rect(20, y - 6, 170, 10, 'F');
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text('Product', 22, y);
-  doc.text('Qty', 110, y);
-  doc.text('Price', 135, y);
-  doc.text('Subtotal', 170, y, { align: 'right' });
-  y += 2;
-  doc.setDrawColor(200, 200, 200);
-  doc.line(20, y, 190, y);
-  y += 8;
+  doc.text('Product', 25, y);
+  doc.text('Qty', 115, y, { align: 'center' });
+  doc.text('Price', 145, y, { align: 'right' });
+  doc.text('Subtotal', 185, y, { align: 'right' });
 
-  // Items
+  doc.setDrawColor(200, 200, 200);
+  doc.line(20, y + 2, 190, y + 2);
+  y += 10;
+
+  // Items with better formatting
   doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
   let pageNum = 1;
+
   sale.sales_items?.forEach((item: any, index: number) => {
     if (y > 250) {
       addFooter(doc, pageNum, totalPages);
@@ -107,59 +112,72 @@ export function generateSalesInvoicePDF(sale: any) {
       totalPages++;
       y = addCompanyHeader(doc, 'Sales Invoice');
     }
-    doc.setFontSize(9);
-    doc.text(item.finished_products?.name || 'Unknown', 22, y);
-    doc.text(item.quantity.toString(), 110, y);
-    doc.text(`PKR ${item.unit_price.toFixed(2)}`, 135, y);
-    doc.text(`PKR ${item.subtotal.toFixed(2)}`, 190, y, { align: 'right' });
-
-    // Alternate row background for better readability
+    
+    // Alternate row background
     if (index % 2 === 0) {
       doc.setFillColor(249, 250, 251);
-      doc.rect(20, y - 4, 170, 6, 'F');
-      doc.setTextColor(0, 0, 0);
+      doc.rect(20, y - 5, 170, 8, 'F');
     }
-
-    y += 7;
+    
+    // Product name (truncate if too long)
+    const productName = item.finished_products?.name || 'Unknown';
+    const truncatedName = productName.length > 40 ? productName.substring(0, 37) + '...' : productName;
+    doc.text(truncatedName, 25, y);
+    
+    // Quantity (centered)
+    doc.text(item.quantity.toString(), 115, y, { align: 'center' });
+    
+    // Price (right-aligned)
+    doc.text(`PKR ${item.unit_price.toFixed(2)}`, 145, y, { align: 'right' });
+    
+    // Subtotal (right-aligned)
+    doc.text(`PKR ${item.subtotal.toFixed(2)}`, 185, y, { align: 'right' });
+    
+    y += 8;
   });
 
   y += 5;
   doc.setDrawColor(200, 200, 200);
   doc.line(20, y, 190, y);
-  y += 10;
+  y += 12;
 
   // Subtotal
-  doc.setFontSize(10);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text('Subtotal:', 150, y);
-  doc.text(`PKR ${subtotal.toFixed(2)}`, 190, y, { align: 'right' });
-  y += 7;
+  doc.text('Subtotal:', 140, y);
+  doc.text(`PKR ${subtotal.toFixed(2)}`, 185, y, { align: 'right' });
+  y += 8;
 
-  // Discount
+  // Discount (if applicable)
   if (discountAmount > 0) {
-    const discountType = sale.discount_type === 'percentage' ? '%' : 'PKR';
-    const discountValue = sale.discount_value || 0;
     doc.setTextColor(220, 38, 38);
-    doc.text(`Discount (${sale.discount_type === 'percentage' ? `${discountValue}%` : `PKR ${discountValue.toFixed(2)}`}):`, 150, y);
-    doc.text(`- PKR ${discountAmount.toFixed(2)}`, 190, y, { align: 'right' });
+    const discountLabel = sale.discount_type === 'percentage' 
+      ? `Discount (${sale.discount_value}%)` 
+      : `Discount (PKR ${sale.discount_value})`;
+    doc.text(discountLabel, 140, y);
+    doc.text(`- PKR ${discountAmount.toFixed(2)}`, 185, y, { align: 'right' });
     doc.setTextColor(0, 0, 0);
-    y += 7;
+    y += 8;
   }
 
-  // Total
+  // Total with prominent styling
   doc.setDrawColor(100, 100, 100);
-  doc.setLineWidth(0.5);
-  doc.line(20, y, 190, y);
-  y += 8;
+  doc.setLineWidth(1);
+  doc.line(140, y, 190, y);
+  y += 10;
+
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('Total Amount:', 150, y);
-  // Use theme primary color
+
+  // Create a colored box for total
   doc.setFillColor(139, 92, 246);
+  doc.rect(140, y - 8, 50, 12, 'F');
+
   doc.setTextColor(255, 255, 255);
-  doc.rect(150, y - 6, 40, 8, 'F');
-  doc.text(`PKR ${sale.total_amount.toFixed(2)}`, 190, y, { align: 'right' });
+  doc.text('TOTAL:', 145, y);
+  doc.text(`PKR ${sale.total_amount.toFixed(2)}`, 185, y, { align: 'right' });
   doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'normal');
 
   // Notes
   if (sale.notes) {
@@ -225,9 +243,11 @@ export function generateProductionRunPDF(run: any) {
       totalPages++;
       y = addCompanyHeader(doc, 'Production Run');
     }
-    doc.text(mat.raw_materials?.name || 'Unknown', 22, y);
+    const materialName = mat.raw_materials?.name || mat.bulk_products?.name || 'Unknown';
+    const materialUnit = mat.raw_materials?.unit || mat.bulk_products?.unit || '';
+    doc.text(materialName, 22, y);
     doc.text(mat.quantity_used.toFixed(3), 120, y);
-    doc.text(mat.raw_materials?.unit || '', 170, y);
+    doc.text(materialUnit, 170, y);
     y += 7;
   });
 
@@ -235,11 +255,14 @@ export function generateProductionRunPDF(run: any) {
   doc.line(20, y, 190, y);
   y += 10;
 
-  // Finished Products
-  if (run.finished_products_produced && run.finished_products_produced.length > 0) {
+  // Products Produced Section
+  const hasFinishedProducts = run.finished_products_produced && run.finished_products_produced.length > 0;
+  const hasBulkProducts = run.bulk_products_produced && run.bulk_products_produced.length > 0;
+
+  if (hasFinishedProducts || hasBulkProducts) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    doc.text('Finished Products Produced:', 20, y);
+    doc.text('Products Produced:', 20, y);
     y += 8;
     doc.setFillColor(249, 250, 251);
     doc.rect(20, y - 5, 170, 8, 'F');
@@ -254,15 +277,38 @@ export function generateProductionRunPDF(run: any) {
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    run.finished_products_produced.forEach((product: any) => {
-      if (y > 250) {
-        doc.addPage();
-        y = 20;
-      }
-      doc.text(product.name, 22, y);
-      doc.text(`${product.quantity_produced} units`, 190, y, { align: 'right' });
-      y += 7;
-    });
+    
+    // Finished Products
+    if (hasFinishedProducts) {
+      run.finished_products_produced.forEach((product: any) => {
+        if (y > 250) {
+          addFooter(doc, pageNum, totalPages);
+          doc.addPage();
+          pageNum++;
+          totalPages++;
+          y = addCompanyHeader(doc, 'Production Run');
+        }
+        doc.text(product.name, 22, y);
+        doc.text(`${product.quantity_produced} units`, 190, y, { align: 'right' });
+        y += 7;
+      });
+    }
+    
+    // Bulk Products
+    if (hasBulkProducts) {
+      run.bulk_products_produced.forEach((product: any) => {
+        if (y > 250) {
+          addFooter(doc, pageNum, totalPages);
+          doc.addPage();
+          pageNum++;
+          totalPages++;
+          y = addCompanyHeader(doc, 'Production Run');
+        }
+        doc.text(product.name, 22, y);
+        doc.text(`${product.quantity_produced} ${product.unit || 'kg'}`, 190, y, { align: 'right' });
+        y += 7;
+      });
+    }
   }
 
   if (run.notes) {
@@ -418,6 +464,107 @@ export function generateReportPDF(title: string, data: any, type: 'sales' | 'inv
   // Add footer
   addFooter(doc, 1, 1);
 
+  return doc;
+}
+
+export function generateFormulationPDF(formulation: any) {
+  const doc = new jsPDF();
+  
+  // Add header
+  let y = addCompanyHeader(doc, 'Formulation Details');
+  
+  // Formulation info
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(formulation.name, 20, y);
+  y += 8;
+  
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  if (formulation.description) {
+    const splitDesc = doc.splitTextToSize(formulation.description, 170);
+    doc.text(splitDesc, 20, y);
+    y += splitDesc.length * 5 + 5;
+  }
+  
+  doc.text(`Batch Size: ${formulation.batch_size} ${formulation.batch_unit || 'kg'}`, 20, y);
+  y += 8;
+  
+  if (formulation.cogs) {
+    doc.setTextColor(0, 128, 0);
+    doc.text(`COGS: PKR ${formulation.cogs.totalCost.toFixed(2)} per batch (PKR ${formulation.cogs.costPerUnit.toFixed(2)} per ${formulation.batch_unit || 'kg'})`, 20, y);
+    doc.setTextColor(0, 0, 0);
+    y += 12;
+  } else {
+    y += 8;
+  }
+  
+  // Ingredients table
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Ingredients', 20, y);
+  y += 8;
+  
+  // Table header
+  doc.setFillColor(230, 230, 230);
+  doc.rect(20, y - 6, 170, 10, 'F');
+  
+  doc.setFontSize(10);
+  doc.text('Ingredient', 25, y);
+  doc.text('Percentage', 110, y);
+  doc.text('Quantity', 145, y);
+  doc.text('Unit', 175, y);
+  
+  doc.setDrawColor(200, 200, 200);
+  doc.line(20, y + 2, 190, y + 2);
+  y += 10;
+  
+  // Ingredients
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  
+  let totalPercentage = 0;
+  formulation.formulation_ingredients?.forEach((ing: any, index: number) => {
+    if (y > 260) {
+      doc.addPage();
+      y = 20;
+    }
+    
+    // Alternate row background
+    if (index % 2 === 0) {
+      doc.setFillColor(249, 250, 251);
+      doc.rect(20, y - 5, 170, 8, 'F');
+    }
+    
+    const ingredientName = ing.name || ing.raw_materials?.name || ing.bulk_products?.name || 'Unknown';
+    const percentage = formulation.batch_size > 0 
+      ? ((ing.quantity / formulation.batch_size) * 100) 
+      : 0;
+    totalPercentage += percentage;
+    
+    doc.text(ingredientName.length > 35 ? ingredientName.substring(0, 32) + '...' : ingredientName, 25, y);
+    doc.text(`${percentage.toFixed(2)}%`, 110, y);
+    doc.text(ing.quantity.toFixed(3), 145, y);
+    doc.text(ing.unit || 'kg', 175, y);
+    
+    y += 8;
+  });
+  
+  // Total row
+  y += 3;
+  doc.setDrawColor(100, 100, 100);
+  doc.line(20, y, 190, y);
+  y += 8;
+  
+  doc.setFont('helvetica', 'bold');
+  doc.text('TOTAL:', 25, y);
+  doc.setTextColor(totalPercentage === 100 ? 0 : 220, totalPercentage === 100 ? 128 : 38, totalPercentage === 100 ? 0 : 38);
+  doc.text(`${totalPercentage.toFixed(2)}%`, 110, y);
+  doc.setTextColor(0, 0, 0);
+  
+  // Add footer
+  addFooter(doc, 1, 1);
+  
   return doc;
 }
 

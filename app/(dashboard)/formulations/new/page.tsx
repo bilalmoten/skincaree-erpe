@@ -252,6 +252,7 @@ export default function NewFormulationPage() {
                     <SelectItem value="g">g</SelectItem>
                     <SelectItem value="L">L</SelectItem>
                     <SelectItem value="mL">mL</SelectItem>
+                    <SelectItem value="pcs">pcs (pieces)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -396,6 +397,7 @@ export default function NewFormulationPage() {
                         <SelectItem value="g">g</SelectItem>
                         <SelectItem value="L">L</SelectItem>
                         <SelectItem value="mL">mL</SelectItem>
+                        <SelectItem value="pcs">pcs (pieces)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -412,11 +414,26 @@ export default function NewFormulationPage() {
                 </div>
               ))}
               {ingredients.length > 0 && (
-                <div className="flex justify-between items-center px-2 py-2 border-t mt-4">
-                  <span className="font-bold">Total:</span>
-                  <span className={`font-bold ${Math.abs(totalPercentage - 100) > 0.01 ? 'text-destructive' : 'text-[hsl(var(--success))]'}`}>
-                    {totalPercentage.toFixed(2)}%
-                  </span>
+                <div className="flex justify-between items-center px-2 py-3 border-t mt-4 bg-muted/30">
+                  <div className="flex gap-6">
+                    <div>
+                      <span className="text-sm text-muted-foreground">Total:</span>
+                      <span className={`ml-2 font-bold text-lg ${Math.abs(totalPercentage - 100) > 0.01 ? 'text-destructive' : 'text-[hsl(var(--success))]'}`}>
+                        {totalPercentage.toFixed(2)}%
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-sm text-muted-foreground">Remaining:</span>
+                      <span className={`ml-2 font-bold text-lg ${(100 - totalPercentage) < 0 ? 'text-destructive' : 'text-[hsl(var(--info))]'}`}>
+                        {(100 - totalPercentage).toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                  {Math.abs(totalPercentage - 100) > 0.01 && (
+                    <span className="text-sm text-destructive font-medium">
+                      ⚠️ Total should equal 100%
+                    </span>
+                  )}
                 </div>
               )}
             </div>

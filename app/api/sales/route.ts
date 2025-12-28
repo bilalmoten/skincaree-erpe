@@ -149,8 +149,15 @@ export async function POST(request: NextRequest) {
       if (available < requested) {
         // Rollback sale
         await supabase.from('sales').delete().eq('id', sale.id);
+        // Get product name for better error message
+        const { data: product } = await supabase
+          .from('finished_products')
+          .select('name')
+          .eq('id', item.finished_product_id)
+          .single();
+        const productName = product?.name || 'product';
         return NextResponse.json(
-          { error: `Insufficient inventory for product. Available: ${available}, Requested: ${requested}` },
+          { error: `Insufficient inventory for ${productName}. Available: ${available} units, Requested: ${requested} units` },
           { status: 400 }
         );
       }

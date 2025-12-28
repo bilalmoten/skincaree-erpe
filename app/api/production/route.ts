@@ -36,20 +36,33 @@ export async function GET() {
     const runIds = runs.map((r: any) => r.id);
     const { data: materialsUsed } = await supabase
       .from('production_materials_used')
-      .select('production_run_id, quantity_used, raw_material_id')
+      .select('production_run_id, quantity_used, raw_material_id, bulk_product_id')
       .in('production_run_id', runIds);
 
     // Get raw material names and prices
-    const materialIds = [...new Set(materialsUsed?.map((m: any) => m.raw_material_id) || [])];
-    const { data: rawMaterials } = await supabase
-      .from('raw_materials')
-      .select('id, name, unit, last_price')
-      .in('id', materialIds);
+    const rawMaterialIds = [...new Set(materialsUsed?.filter((m: any) => m.raw_material_id).map((m: any) => m.raw_material_id) || [])];
+    const bulkProductIds = [...new Set(materialsUsed?.filter((m: any) => m.bulk_product_id).map((m: any) => m.bulk_product_id) || [])];
+
+    const [rawMaterialsData, bulkProductsData] = await Promise.all([
+      supabase
+        .from('raw_materials')
+        .select('id, name, unit, last_price')
+        .in('id', rawMaterialIds),
+      supabase
+        .from('bulk_products')
+        .select('id, name, unit')
+        .in('id', bulkProductIds)
+    ]);
 
     const materialMap = new Map();
-    if (rawMaterials) {
-      rawMaterials.forEach((m: any) => {
-        materialMap.set(m.id, { name: m.name, unit: m.unit, last_price: m.last_price });
+    if (rawMaterialsData.data) {
+      rawMaterialsData.data.forEach((m: any) => {
+        materialMap.set(m.id, { name: m.name, unit: m.unit, last_price: m.last_price, type: 'raw' });
+      });
+    }
+    if (bulkProductsData.data) {
+      bulkProductsData.data.forEach((m: any) => {
+        materialMap.set(m.id, { name: m.name, unit: m.unit, last_price: null, type: 'bulk' });
       });
     }
 
@@ -58,6 +71,18 @@ export async function GET() {
       .from('finished_products')
       .select('id, name, formulation_id, units_per_batch')
       .in('formulation_id', formulationIds);
+
+    // Get bulk products for formulations
+    const { data: bulkProducts } = await supabase
+      .from('bulk_products')
+      .select('id, name, formulation_id, unit')
+      .in('formulation_id', formulationIds);
+
+    // Get formulations with produces_type and produces_id
+    const { data: formulationsWithProduces } = await supabase
+      .from('formulations')
+      .select('id, produces_type, produces_id')
+      .in('id', formulationIds);
 
     const productsByFormulation = new Map();
     if (finishedProducts) {
@@ -68,8 +93,31 @@ export async function GET() {
         productsByFormulation.get(p.formulation_id).push({
           id: p.id,
           name: p.name,
+          type: 'finished',
           units_per_batch: p.units_per_batch || 1
         });
+      });
+    }
+
+    const bulkProductsByFormulation = new Map();
+    if (bulkProducts) {
+      bulkProducts.forEach((p: any) => {
+        if (!bulkProductsByFormulation.has(p.formulation_id)) {
+          bulkProductsByFormulation.set(p.formulation_id, []);
+        }
+        bulkProductsByFormulation.get(p.formulation_id).push({
+          id: p.id,
+          name: p.name,
+          type: 'bulk',
+          unit: p.unit
+        });
+      });
+    }
+
+    const formulationProducesMap = new Map();
+    if (formulationsWithProduces) {
+      formulationsWithProduces.forEach((f: any) => {
+        formulationProducesMap.set(f.id, { produces_type: f.produces_type, produces_id: f.produces_id });
       });
     }
 
@@ -77,11 +125,24 @@ export async function GET() {
     const runsWithDetails = runs.map((run: any) => {
       const runMaterials = materialsUsed?.filter((m: any) => m.production_run_id === run.id) || [];
       const materialsWithNames = runMaterials.map((m: any) => {
-        const material = materialMap.get(m.raw_material_id);
+        const materialId = m.raw_material_id || m.bulk_product_id;
+        const material = materialMap.get(materialId);
         return {
           id: m.id,
           quantity_used: m.quantity_used,
-          raw_materials: material || { id: m.raw_material_id, name: 'Unknown', unit: '', last_price: null }
+          raw_material_id: m.raw_material_id,
+          bulk_product_id: m.bulk_product_id,
+          raw_materials: m.raw_material_id && material ? { 
+            id: materialId, 
+            name: material.name, 
+            unit: material.unit, 
+            last_price: material.last_price 
+          } : null,
+          bulk_products: m.bulk_product_id && material ? {
+            id: materialId,
+            name: material.name,
+            unit: material.unit
+          } : null
         };
       });
 
@@ -99,6 +160,21 @@ export async function GET() {
         };
       });
 
+      // Calculate bulk products produced
+      const producesInfo = formulationProducesMap.get(run.formulation_id);
+      const bulkProductsProduced = [];
+      if (producesInfo?.produces_type === 'bulk' && producesInfo.produces_id) {
+        const bulkProduct = bulkProductsByFormulation.get(run.formulation_id)?.find((bp: any) => bp.id === producesInfo.produces_id);
+        if (bulkProduct) {
+          bulkProductsProduced.push({
+            id: bulkProduct.id,
+            name: bulkProduct.name,
+            quantity_produced: run.batch_size,
+            unit: bulkProduct.unit || 'kg'
+          });
+        }
+      }
+
       const formulation = formulationMap.get(run.formulation_id);
       return {
         ...run,
@@ -109,7 +185,8 @@ export async function GET() {
         },
         production_materials_used: materialsWithNames,
         finished_products: linkedProducts.map((p: any) => ({ id: p.id, name: p.name })),
-        finished_products_produced: finishedProductsProduced
+        finished_products_produced: finishedProductsProduced,
+        bulk_products_produced: bulkProductsProduced
       };
     });
 
@@ -172,15 +249,15 @@ export async function POST(request: NextRequest) {
     // 1. Raw Material Inventory
     const { data: rawInv } = await supabase
       .from('raw_material_inventory')
-      .select('raw_material_id, quantity, raw_materials(unit)');
+      .select('raw_material_id, quantity, raw_materials(id, name, unit)');
     
     // 2. Bulk Product Inventory
     const { data: bulkInv } = await supabase
       .from('bulk_product_inventory')
-      .select('bulk_product_id, quantity, bulk_products(unit)');
+      .select('bulk_product_id, quantity, bulk_products(id, name, unit)');
 
-    const rawInvMap = new Map(rawInv?.map((i: any) => [i.raw_material_id, { quantity: i.quantity, unit: i.raw_materials?.unit }]) || []);
-    const bulkInvMap = new Map(bulkInv?.map((i: any) => [i.bulk_product_id, { quantity: i.quantity, unit: i.bulk_products?.unit }]) || []);
+    const rawInvMap = new Map(rawInv?.map((i: any) => [i.raw_material_id, { quantity: i.quantity, unit: i.raw_materials?.unit, name: i.raw_materials?.name }]) || []);
+    const bulkInvMap = new Map(bulkInv?.map((i: any) => [i.bulk_product_id, { quantity: i.quantity, unit: i.bulk_products?.unit, name: i.bulk_products?.name }]) || []);
 
     const insufficient = [];
     for (const ing of formulation.formulation_ingredients) {
@@ -203,10 +280,16 @@ export async function POST(request: NextRequest) {
       const ingredientUnit = ing.unit?.toLowerCase();
       const baseUnit = materialUnit?.toLowerCase();
 
-      if (baseUnit === 'kg' && ingredientUnit === 'g') requiredInBase = required / 1000;
-      else if (baseUnit === 'g' && ingredientUnit === 'kg') requiredInBase = required * 1000;
-      else if (baseUnit === 'l' && ingredientUnit === 'ml') requiredInBase = required / 1000;
-      else if (baseUnit === 'ml' && ingredientUnit === 'l') requiredInBase = required * 1000;
+      // Skip conversion for pieces
+      if (ingredientUnit === 'pcs' || baseUnit === 'pcs') {
+        requiredInBase = required;
+      } else {
+        // Existing conversion logic
+        if (baseUnit === 'kg' && ingredientUnit === 'g') requiredInBase = required / 1000;
+        else if (baseUnit === 'g' && ingredientUnit === 'kg') requiredInBase = required * 1000;
+        else if (baseUnit === 'l' && ingredientUnit === 'ml') requiredInBase = required / 1000;
+        else if (baseUnit === 'ml' && ingredientUnit === 'l') requiredInBase = required * 1000;
+      }
 
       if (available < requiredInBase) {
         insufficient.push({
@@ -219,7 +302,39 @@ export async function POST(request: NextRequest) {
     }
 
     if (insufficient.length > 0) {
-      return NextResponse.json({ error: 'Insufficient inventory', details: insufficient }, { status: 400 });
+      // Format error message for better readability
+      const errorMessages = insufficient.map(item => {
+        // Get material name
+        let materialName = 'Unknown Material';
+        if (item.id) {
+          // Try to find the material name from the inventory maps
+          const rawInvItem = rawInvMap.get(item.id);
+          const bulkInvItem = bulkInvMap.get(item.id);
+          
+          if (rawInvItem?.name) {
+            materialName = rawInvItem.name;
+          } else if (bulkInvItem?.name) {
+            materialName = bulkInvItem.name;
+          } else {
+            // Fallback: try to find from formulation ingredients
+            const ingredient = formulation.formulation_ingredients.find(
+              (ing: any) => ing.raw_material_id === item.id || ing.bulk_product_id === item.id
+            );
+            if (ingredient?.raw_material_id) {
+              materialName = 'Raw Material';
+            } else if (ingredient?.bulk_product_id) {
+              materialName = 'Bulk Product';
+            }
+          }
+        }
+        
+        return `${materialName}: Need ${item.required.toFixed(3)} but only ${item.available.toFixed(3)} available`;
+      }).join('; ');
+      
+      return NextResponse.json({ 
+        error: `Insufficient inventory. ${errorMessages}`,
+        details: insufficient 
+      }, { status: 400 });
     }
 
     // Create production run
@@ -254,44 +369,99 @@ export async function POST(request: NextRequest) {
       const ingredientUnit = ing.unit?.toLowerCase();
       const baseUnit = materialUnit?.toLowerCase();
 
-      if (baseUnit === 'kg' && ingredientUnit === 'g') quantityToDeduct = quantityUsed / 1000;
-      else if (baseUnit === 'g' && ingredientUnit === 'kg') quantityToDeduct = quantityUsed * 1000;
-      else if (baseUnit === 'l' && ingredientUnit === 'ml') quantityToDeduct = quantityUsed / 1000;
-      else if (baseUnit === 'ml' && ingredientUnit === 'l') quantityToDeduct = quantityUsed * 1000;
+      // Skip conversion for pieces
+      if (ingredientUnit !== 'pcs' && baseUnit !== 'pcs') {
+        if (baseUnit === 'kg' && ingredientUnit === 'g') quantityToDeduct = quantityUsed / 1000;
+        else if (baseUnit === 'g' && ingredientUnit === 'kg') quantityToDeduct = quantityUsed * 1000;
+        else if (baseUnit === 'l' && ingredientUnit === 'ml') quantityToDeduct = quantityUsed / 1000;
+        else if (baseUnit === 'ml' && ingredientUnit === 'l') quantityToDeduct = quantityUsed * 1000;
+      }
 
       if (ing.raw_material_id) {
-        await supabase.from('production_materials_used').insert({
-          production_run_id: productionRun.id,
-          raw_material_id: ing.raw_material_id,
-          quantity_used: quantityUsed,
-        });
+        // Track raw material usage
+        const { error: trackError } = await supabase
+          .from('production_materials_used')
+          .insert({
+            production_run_id: productionRun.id,
+            raw_material_id: ing.raw_material_id,
+            bulk_product_id: null,
+            quantity_used: quantityUsed,
+          });
+        
+        if (trackError) {
+          console.error('Error tracking raw material usage:', trackError);
+        }
 
+        // Deduct from inventory
         const currentQty = rawInvMap.get(ing.raw_material_id)?.quantity || 0;
-        await supabase.from('raw_material_inventory').upsert({
-          raw_material_id: ing.raw_material_id,
-          quantity: currentQty - quantityToDeduct,
-        }, { onConflict: 'raw_material_id' });
+        const { error: invError } = await supabase
+          .from('raw_material_inventory')
+          .upsert({
+            raw_material_id: ing.raw_material_id,
+            quantity: Math.max(0, currentQty - quantityToDeduct),
+          }, { onConflict: 'raw_material_id' });
+        
+        if (invError) {
+          console.error('Error updating raw material inventory:', invError);
+        }
+        
       } else if (ing.bulk_product_id) {
-        // Record bulk product usage? We might need a new table or just use production_materials_used if we can?
-        // Let's stick to raw_materials table if possible for unified tracking?
-        // No, user specifically has bulk_products table.
-        // I'll add a bulk_product_id to production_materials_used?
-        // For now, I'll just deduct inventory.
+        // Track bulk product usage
+        const { error: trackError } = await supabase
+          .from('production_materials_used')
+          .insert({
+            production_run_id: productionRun.id,
+            raw_material_id: null,
+            bulk_product_id: ing.bulk_product_id,
+            quantity_used: quantityUsed,
+          });
+        
+        if (trackError) {
+          console.error('Error tracking bulk product usage:', trackError);
+        }
+
+        // Deduct from bulk product inventory
         const currentQty = bulkInvMap.get(ing.bulk_product_id)?.quantity || 0;
-        await supabase.from('bulk_product_inventory').upsert({
-          bulk_product_id: ing.bulk_product_id,
-          quantity: currentQty - quantityToDeduct,
-        }, { onConflict: 'bulk_product_id' });
+        const { error: invError } = await supabase
+          .from('bulk_product_inventory')
+          .upsert({
+            bulk_product_id: ing.bulk_product_id,
+            quantity: Math.max(0, currentQty - quantityToDeduct),
+          }, { onConflict: 'bulk_product_id' });
+        
+        if (invError) {
+          console.error('Error updating bulk product inventory:', invError);
+        }
       }
     }
 
-    // Increase output
+    // Increase output inventory
     if (producesType === 'bulk' && producesId) {
-      const { data: currBulk } = await supabase.from('bulk_product_inventory').select('quantity').eq('bulk_product_id', producesId).single();
-      await supabase.from('bulk_product_inventory').upsert({
-        bulk_product_id: producesId,
-        quantity: (currBulk?.quantity || 0) + parseFloat(batch_size),
-      }, { onConflict: 'bulk_product_id' });
+      const { data: currBulk, error: fetchError } = await supabase
+        .from('bulk_product_inventory')
+        .select('quantity')
+        .eq('bulk_product_id', producesId)
+        .maybeSingle();
+      
+      // If error is PGRST116 (no rows), that's fine - we'll create a new record
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error fetching bulk product inventory:', fetchError);
+      }
+      
+      const currentQuantity = currBulk?.quantity || 0;
+      const newQuantity = currentQuantity + parseFloat(batch_size);
+      
+      const { error: bulkError } = await supabase
+        .from('bulk_product_inventory')
+        .upsert({
+          bulk_product_id: producesId,
+          quantity: newQuantity,
+        }, { onConflict: 'bulk_product_id' });
+      
+      if (bulkError) {
+        console.error('Error updating bulk product inventory:', bulkError);
+        throw new Error(`Failed to update bulk product inventory: ${bulkError.message}`);
+      }
     } else if (producesType === 'finished' && producesId) {
       // Logic for finished product (Batch creation)
       // Get shelf life

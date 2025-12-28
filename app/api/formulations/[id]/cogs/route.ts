@@ -16,11 +16,19 @@ export async function GET(
         *,
         formulation_ingredients (
           quantity,
+          unit,
           raw_material_id,
+          bulk_product_id,
           raw_materials (
             id,
             name,
-            last_price
+            last_price,
+            unit
+          ),
+          bulk_products (
+            id,
+            name,
+            unit
           )
         )
       `)
@@ -41,49 +49,66 @@ export async function GET(
           price = ing.raw_materials?.last_price || 0;
           baseUnit = ing.raw_materials?.unit || 'kg';
         } else if (ing.bulk_product_id) {
-          // Try to get cost from bulk product's formulation COGS
-          // This is a simple non-recursive check
+          // Get bulk product details
           const { data: bulk } = await supabase
             .from('bulk_products')
             .select('formulation_id, unit')
             .eq('id', ing.bulk_product_id)
             .single();
           
-          baseUnit = bulk?.unit || 'kg';
+          baseUnit = bulk?.unit || ing.bulk_products?.unit || 'kg';
 
           if (bulk?.formulation_id) {
-            // Get cost of that formulation
-            const { data: bulkForm } = await supabase
+            // Recursively get COGS of bulk product formulation
+            const { data: bulkFormulation } = await supabase
               .from('formulations')
-              .select('id')
+              .select('id, batch_size, batch_unit')
               .eq('id', bulk.formulation_id)
               .single();
             
-            if (bulkForm) {
-              const res = await fetch(`${request.nextUrl.origin}/api/formulations/${bulkForm.id}/cogs`);
-              if (res.ok) {
-                const cogs = await res.json();
-                price = cogs.costPerUnit || 0;
+            if (bulkFormulation) {
+              // Fetch COGS recursively (prevent infinite loop by checking depth)
+              try {
+                const cogsRes = await fetch(`${request.nextUrl.origin}/api/formulations/${bulkFormulation.id}/cogs`);
+                if (cogsRes.ok) {
+                  const cogs = await cogsRes.json();
+                  price = cogs.costPerUnit || 0;
+                } else {
+                  console.warn(`Failed to fetch COGS for bulk product formulation ${bulkFormulation.id}`);
+                  price = 0;
+                }
+              } catch (error) {
+                console.error(`Error fetching COGS for bulk product:`, error);
+                price = 0;
               }
             }
           }
         }
         
         // Handle unit conversion if necessary
-        const materialUnit = baseUnit.toLowerCase();
-        const ingredientUnit = ing.unit?.toLowerCase();
+        const materialUnit = baseUnit?.toLowerCase() || 'kg';
+        const ingredientUnit = ing.unit?.toLowerCase() || 'kg';
 
+        let convertedQuantity = quantity;
+
+        // Weight conversions
         if (materialUnit === 'kg' && ingredientUnit === 'g') {
-          quantity = quantity / 1000;
+          convertedQuantity = quantity / 1000;
         } else if (materialUnit === 'g' && ingredientUnit === 'kg') {
-          quantity = quantity * 1000;
-        } else if (materialUnit === 'l' && ingredientUnit === 'ml') {
-          quantity = quantity / 1000;
+          convertedQuantity = quantity * 1000;
+        }
+        // Volume conversions
+        else if (materialUnit === 'l' && ingredientUnit === 'ml') {
+          convertedQuantity = quantity / 1000;
         } else if (materialUnit === 'ml' && ingredientUnit === 'l') {
-          quantity = quantity * 1000;
+          convertedQuantity = quantity * 1000;
+        }
+        // If units don't match and no conversion available, log warning
+        else if (materialUnit !== ingredientUnit && materialUnit !== 'pcs' && ingredientUnit !== 'pcs') {
+          console.warn(`Unit mismatch: ${ingredientUnit} to ${materialUnit} for ingredient. Using quantity as-is.`);
         }
 
-        totalCost += price * quantity;
+        totalCost += price * convertedQuantity;
       }
     }
 

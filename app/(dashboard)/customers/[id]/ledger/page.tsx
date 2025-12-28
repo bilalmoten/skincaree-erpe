@@ -117,9 +117,27 @@ export default function CustomerLedgerPage() {
           <h1 className="text-3xl font-bold text-foreground">{customer.name}</h1>
           <p className="text-muted-foreground">Customer Ledger</p>
         </div>
-        <Button onClick={() => setShowPaymentForm(!showPaymentForm)}>
-          {showPaymentForm ? 'Cancel Payment' : '+ Record Payment'}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={async () => {
+              try {
+                const { generateLedgerPDF } = await import('@/lib/pdf/utils');
+                const doc = generateLedgerPDF(customer, ledger);
+                doc.save(`ledger-${customer.name.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`);
+              } catch (error) {
+                console.error('Error generating ledger PDF:', error);
+                showToast('Failed to generate ledger PDF', 'error');
+              }
+            }}
+            variant="outline"
+            className="bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90 text-white"
+          >
+            📄 Print Ledger
+          </Button>
+          <Button onClick={() => setShowPaymentForm(!showPaymentForm)}>
+            {showPaymentForm ? 'Cancel Payment' : '+ Record Payment'}
+          </Button>
+        </div>
       </div>
 
       {showPaymentForm && (

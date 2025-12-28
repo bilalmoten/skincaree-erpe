@@ -90,25 +90,72 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Update inventory and last price
+        // Update inventory and material costs sequentially to avoid race conditions
         const { data: currentInv } = await supabase
           .from('raw_material_inventory')
           .select('quantity')
           .eq('raw_material_id', item.raw_material_id)
           .single();
-        
-        await Promise.all([
-          supabase
-            .from('raw_material_inventory')
-            .upsert({
-              raw_material_id: item.raw_material_id,
-              quantity: (currentInv?.quantity || 0) + item.quantity,
-            }),
-          supabase
-            .from('raw_materials')
-            .update({ last_price: item.unit_price })
-            .eq('id', item.raw_material_id)
-        ]);
+
+        const currentQty = currentInv?.quantity || 0;
+        const newQty = currentQty + item.quantity;
+
+        // Update inventory
+        const { error: invError } = await supabase
+          .from('raw_material_inventory')
+          .upsert({
+            raw_material_id: item.raw_material_id,
+            quantity: newQty,
+          }, {
+            onConflict: 'raw_material_id'
+          });
+
+        if (invError) {
+          errors.push(`Error updating inventory for item: ${invError.message}`);
+          continue;
+        }
+
+        // Get current material data for weighted average cost calculation
+        const { data: material } = await supabase
+          .from('raw_materials')
+          .select('average_cost')
+          .eq('id', item.raw_material_id)
+          .single();
+
+        const currentAvgCost = material?.average_cost || 0;
+
+        // Calculate weighted average cost
+        let newAverageCost = item.unit_price;
+        if (currentQty > 0 && currentAvgCost > 0) {
+          const totalValue = (currentAvgCost * currentQty) + (item.unit_price * item.quantity);
+          newAverageCost = totalValue / newQty;
+        }
+
+        // Update material costs
+        const { error: costError } = await supabase
+          .from('raw_materials')
+          .update({
+            last_price: item.unit_price,
+            last_purchase_cost: item.unit_price,
+            average_cost: newAverageCost,
+          })
+          .eq('id', item.raw_material_id);
+
+        if (costError) {
+          errors.push(`Error updating material costs: ${costError.message}`);
+        }
+
+        // Create cost history entry
+        await supabase
+          .from('cost_history')
+          .insert({
+            raw_material_id: item.raw_material_id,
+            purchase_order_id: purchaseOrder.id,
+            cost_per_unit: item.unit_price,
+            quantity: item.quantity,
+            total_cost: item.quantity * item.unit_price,
+            purchase_date: po.purchase_date,
+          });
       }
 
       imported.push(purchaseOrder);
