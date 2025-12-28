@@ -11,7 +11,13 @@ interface Ingredient {
   id: string;
   quantity: number;
   unit: string;
-  raw_materials: {
+  name?: string;
+  raw_materials?: {
+    id: string;
+    name: string;
+    unit: string;
+  };
+  bulk_products?: {
     id: string;
     name: string;
     unit: string;
